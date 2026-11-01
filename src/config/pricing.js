@@ -1,3 +1,4 @@
+// AI-assisted: see docs/AI_LOG.md #2
 const PRICING_CONFIG = {
   BASE_FARE: 3500,
   PRICE_PER_KM: 1200,
