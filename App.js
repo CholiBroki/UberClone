@@ -4,12 +4,3 @@ import RegisterScreen from './src/screens/RegisterScreen';
 export default function App() {
   return <RegisterScreen />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
