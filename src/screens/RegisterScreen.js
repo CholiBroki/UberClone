@@ -11,8 +11,8 @@ const RegisterScreen = () => {
   const [submittedTab1, setSubmittedTab1] = useState(false);
   const [submittedTab2, setSubmittedTab2] = useState(false);
 
-  // Estados limpios sin predeterminados
   const [personalData, setPersonalData] = useState({
+    profilePhoto: null,
     fullName: '',
     idNumber: '',
     phone: '',
@@ -23,6 +23,7 @@ const RegisterScreen = () => {
   });
 
   const [vehicleData, setVehicleData] = useState({
+    vehiclePhoto: null,
     category: '',
     plate: '',
     brand: '',
@@ -67,7 +68,6 @@ const RegisterScreen = () => {
       {/* Header Superior Azul Curvo */}
       <View style={styles.topBanner}>
         <View style={styles.tabHeader}>
-          {/* Pestaña Personales (sin numero) */}
           <TouchableOpacity 
             style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
             onPress={() => handleTabPress(1)}
@@ -86,7 +86,6 @@ const RegisterScreen = () => {
 
           <View style={styles.stepDivider} />
 
-          {/* Pestaña Vehículo (sin numero) */}
           <TouchableOpacity 
             style={[
               styles.tabButton, 

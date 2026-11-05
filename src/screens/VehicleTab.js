@@ -1,7 +1,8 @@
 // AI-assisted: see docs/AI_LOG.md #5
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
@@ -11,6 +12,55 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
       val = value.toUpperCase();
     }
     setVehicleData(prev => ({ ...prev, [field]: val }));
+  };
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería para seleccionar la foto del vehículo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('vehiclePhoto', result.assets[0].uri);
+    }
+  };
+
+  const takeWithCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara para tomar la foto del vehículo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('vehiclePhoto', result.assets[0].uri);
+    }
+  };
+
+  const handleSelectVehiclePhoto = () => {
+    Alert.alert(
+      'Foto del Vehículo',
+      '¿De dónde deseas obtener la foto del carro?',
+      [
+        { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
+        { text: 'Elegir de la Galería', onPress: pickFromGallery },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
   };
 
   return (
@@ -23,7 +73,28 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
           <Text style={styles.title}>Datos del Vehículo</Text>
         </View>
 
-        {/* Categoría (Inicia en Seleccionar categoría...) */}
+        {/* Foto del Vehículo con selector */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="image-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Foto del vehículo</Text>
+          </View>
+          <TouchableOpacity onPress={handleSelectVehiclePhoto} style={styles.vehiclePhotoCard}>
+            {vehicleData.vehiclePhoto ? (
+              <Image source={{ uri: vehicleData.vehiclePhoto }} style={styles.vehiclePhotoPreview} />
+            ) : (
+              <View style={styles.vehiclePhotoPlaceholder}>
+                <Ionicons name="camera-outline" size={36} color="#0056D2" />
+                <Text style={styles.uploadText}>Tomar o elegir foto del carro (Placa visible)</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {touched.hasSubmitted && errors.vehiclePhoto && (
+            <Text style={styles.errorText}>{errors.vehiclePhoto}</Text>
+          )}
+        </View>
+
+        {/* Categoría */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="pricetag-outline" size={18} color="#0056D2" />
@@ -139,7 +210,7 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
           {touched.hasSubmitted && errors.capacity && <Text style={styles.errorText}>{errors.capacity}</Text>}
         </View>
 
-        {/* Color (Inicia en Seleccionar color...) */}
+        {/* Color */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="color-palette-outline" size={18} color="#0056D2" />
@@ -204,6 +275,30 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#0A2540'
+  },
+  vehiclePhotoCard: {
+    height: 140,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  vehiclePhotoPreview: {
+    width: '100%',
+    height: '100%'
+  },
+  vehiclePhotoPlaceholder: {
+    alignItems: 'center'
+  },
+  uploadText: {
+    color: '#0056D2',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6
   },
   fieldGroup: {
     marginBottom: 16

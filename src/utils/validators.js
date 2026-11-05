@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #5
+// AI-assisted: see docs/AI_LOG.md #3
 export const validatePersonalData = (data) => {
   const errors = {};
 
@@ -20,10 +20,25 @@ export const validatePersonalData = (data) => {
 
   if (!data.birthDate) {
     errors.birthDate = 'La fecha de nacimiento es obligatoria.';
+  } else {
+    const birth = new Date(data.birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      errors.birthDate = 'Debe ser mayor de 18 años para registrarse como conductor.';
+    }
   }
 
   if (!data.gender) {
     errors.gender = 'Debe seleccionar un género.';
+  }
+
+  if (!data.profilePhoto) {
+    errors.profilePhoto = 'La foto de perfil es obligatoria.';
   }
 
   return errors;
@@ -58,6 +73,10 @@ export const validateVehicleData = (data) => {
 
   if (!data.color) {
     errors.color = 'Debe seleccionar un color.';
+  }
+
+  if (!data.vehiclePhoto) {
+    errors.vehiclePhoto = 'La foto del vehículo es obligatoria.';
   }
 
   return errors;

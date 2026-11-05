@@ -1,8 +1,9 @@
 // AI-assisted: see docs/AI_LOG.md #4
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
@@ -20,6 +21,59 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
     }
   };
 
+  // 1. Abrir Galería
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería para seleccionar la foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('profilePhoto', result.assets[0].uri);
+    }
+  };
+
+  // 2. Tomar Foto con la Cámara
+  const takeWithCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara para tomar la foto de perfil.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      cameraType: ImagePicker.CameraType.front, // Abre cámara frontal por defecto para selfie
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('profilePhoto', result.assets[0].uri);
+    }
+  };
+
+  // Menu desplegable de seleccion
+  const handleSelectPhotoOptions = () => {
+    Alert.alert(
+      'Foto de Perfil',
+      '¿De dónde deseas obtener tu foto?',
+      [
+        { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
+        { text: 'Elegir de la Galería', onPress: pickFromGallery },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
@@ -28,6 +82,24 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
             <Ionicons name="person" size={24} color="#0056D2" />
           </View>
           <Text style={styles.title}>Datos Personales</Text>
+        </View>
+
+        {/* Foto de Perfil con menú de cámara/galería */}
+        <View style={styles.photoContainer}>
+          <TouchableOpacity onPress={handleSelectPhotoOptions} style={styles.avatarButton}>
+            {formData.profilePhoto ? (
+              <Image source={{ uri: formData.profilePhoto }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="camera-outline" size={32} color="#0056D2" />
+                <Text style={styles.avatarText}>Subir foto</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.photoHint}>Foto de perfil (Rostro visible)</Text>
+          {touched.hasSubmitted && errors.profilePhoto && (
+            <Text style={styles.errorText}>{errors.profilePhoto}</Text>
+          )}
         </View>
 
         {/* Nombre completo */}
@@ -51,7 +123,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
           )}
         </View>
 
-        {/* Documento de identidad (Ícono cambiado a id-card-outline) */}
+        {/* Documento de identidad */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="id-card-outline" size={18} color="#0056D2" />
@@ -137,7 +209,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
 
         {showDatePicker && (
           <DateTimePicker
-            value={formData.birthDate ? new Date(formData.birthDate) : new Date(2000, 0, 1)}
+            value={formData.birthDate ? new Date(formData.birthDate) : new Date(2005, 0, 1)}
             mode="date"
             display="default"
             onChange={handleDateChange}
@@ -210,7 +282,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 12
   },
   iconBadge: {
@@ -225,6 +297,40 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#0A2540'
+  },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  avatarButton: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    overflow: 'hidden',
+    backgroundColor: '#F0F4F8',
+    borderWidth: 2,
+    borderColor: '#0056D2',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%'
+  },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  avatarText: {
+    fontSize: 11,
+    color: '#0056D2',
+    fontWeight: '600',
+    marginTop: 2
+  },
+  photoHint: {
+    fontSize: 12,
+    color: '#4A5568',
+    marginTop: 6
   },
   fieldGroup: {
     marginBottom: 16
