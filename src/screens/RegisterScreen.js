@@ -1,14 +1,13 @@
 // AI-assisted: see docs/AI_LOG.md #7
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform } from 'react-native';
 import PersonalDataTab from './PersonalDataTab';
 import VehicleTab from './VehicleTab';
 import { validatePersonalData, validateVehicleData } from '../utils/validators';
+import { Ionicons } from '@expo/vector-icons';
 
 const RegisterScreen = () => {
   const [activeTab, setActiveTab] = useState(1);
-  
-  // Separamos el intento de envio por cada pestana independiente
   const [submittedTab1, setSubmittedTab1] = useState(false);
   const [submittedTab2, setSubmittedTab2] = useState(false);
 
@@ -18,7 +17,7 @@ const RegisterScreen = () => {
     phone: '',
     email: '',
     birthDate: '',
-    gender: 'Masculino',
+    gender: '',
     language: 'Español'
   });
 
@@ -38,7 +37,6 @@ const RegisterScreen = () => {
   const isPersonalValid = Object.keys(personalErrors).length === 0;
   const isVehicleValid = Object.keys(vehicleErrors).length === 0;
 
-  // Bloqueo de navegacion manual por pestañas
   const handleTabPress = (tabIndex) => {
     if (tabIndex === 2 && !isPersonalValid) {
       setSubmittedTab1(true);
@@ -56,46 +54,68 @@ const RegisterScreen = () => {
     } else if (activeTab === 2) {
       setSubmittedTab2(true);
       if (isPersonalValid && isVehicleValid) {
-        const newDriver = {
-          ...personalData,
-          vehicle: vehicleData,
-          status: 'Pendiente'
-        };
-        console.log('Registro enviado con éxito:', newDriver);
+        // En el futuro, esto avanzará a la Pestaña 3 (Documentos)
+        console.log('Pestaña 2 validada correctamente');
       }
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Header de pestañas */}
-      <View style={styles.tabHeader}>
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
-          onPress={() => handleTabPress(1)}
-        >
-          <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>1. Personales</Text>
-        </TouchableOpacity>
+  const isCurrentTabValid = activeTab === 1 ? isPersonalValid : (isPersonalValid && isVehicleValid);
 
-        <TouchableOpacity 
-          style={[
-            styles.tabButton, 
-            activeTab === 2 && styles.activeTabButton,
-            !isPersonalValid && styles.tabDisabled
-          ]}
-          onPress={() => handleTabPress(2)}
-        >
-          <Text style={[
-            styles.tabText, 
-            activeTab === 2 && styles.activeTabText,
-            !isPersonalValid && styles.tabDisabledText
-          ]}>
-            2. Vehículo
-          </Text>
-        </TouchableOpacity>
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2545" />
+
+      {/* Header Superior Azul Curvo con respeto al Notch */}
+      <View style={styles.topBanner}>
+        <View style={styles.tabHeader}>
+          <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
+            onPress={() => handleTabPress(1)}
+          >
+            <View style={styles.tabRow}>
+              {isPersonalValid ? (
+                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+              ) : (
+                <View style={[styles.stepNumber, activeTab === 1 && styles.activeStepNumber]}>
+                  <Text style={styles.stepText}>1</Text>
+                </View>
+              )}
+              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>1. Personales</Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.stepDivider} />
+
+          <TouchableOpacity 
+            style={[
+              styles.tabButton, 
+              activeTab === 2 && styles.activeTabButton,
+              !isPersonalValid && styles.tabDisabled
+            ]}
+            onPress={() => handleTabPress(2)}
+          >
+            <View style={styles.tabRow}>
+              {isVehicleValid ? (
+                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+              ) : (
+                <View style={[styles.stepNumber, activeTab === 2 && styles.activeStepNumber]}>
+                  <Text style={styles.stepText}>2</Text>
+                </View>
+              )}
+              <Text style={[
+                styles.tabText, 
+                activeTab === 2 && styles.activeTabText,
+                !isPersonalValid && styles.tabDisabledText
+              ]}>
+                2. Vehículo
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Contenido de la pestaña activa */}
+      {/* Contenido dinámico */}
       <View style={styles.tabContent}>
         {activeTab === 1 && (
           <PersonalDataTab 
@@ -128,77 +148,118 @@ const RegisterScreen = () => {
         )}
       </View>
 
-      {/* Botón dinámico */}
+      {/* Footer con Botón Continuar */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[
-            styles.actionButton, 
-            activeTab === 1 ? (!isPersonalValid && styles.disabledButton) : (!isVehicleValid && styles.disabledButton)
-          ]}
+          style={[styles.actionButton, !isCurrentTabValid && styles.disabledButton]}
           onPress={handleNextOrSubmit}
         >
-          <Text style={styles.actionText}>
-            {activeTab === 1 ? 'Continuar' : 'Enviar registro'}
-          </Text>
+          <Text style={styles.actionText}>Continuar</Text>
+          <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF9F6',
-    paddingTop: 40
+    backgroundColor: '#EEF4FB'
+  },
+  topBanner: {
+    backgroundColor: '#0B2545',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 16,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingHorizontal: 16,
+    zIndex: 10,
+    elevation: 5
   },
   tabHeader: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#FFFFFF'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   tabButton: {
-    flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     alignItems: 'center'
   },
   activeTabButton: {
     borderBottomWidth: 3,
-    borderBottomColor: '#1A1A1A'
+    borderBottomColor: '#0066FF'
   },
-  tabDisabled: {
-    opacity: 0.4
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  stepNumber: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1E3A8A',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  activeStepNumber: {
+    backgroundColor: '#0066FF'
+  },
+  stepText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold'
+  },
+  stepDivider: {
+    width: 30,
+    height: 2,
+    backgroundColor: '#1E3A8A',
+    marginHorizontal: 8
   },
   tabText: {
     fontSize: 14,
-    color: '#777777',
-    fontWeight: '500'
+    color: '#94A3B8',
+    fontWeight: '600'
   },
   activeTabText: {
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     fontWeight: 'bold'
   },
+  tabDisabled: {
+    opacity: 0.5
+  },
   tabDisabledText: {
-    color: '#999999'
+    color: '#64748B'
   },
   tabContent: {
-    flex: 1
+    flex: 1,
+    paddingTop: 12
   },
   footer: {
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0'
+    borderTopColor: '#E2E8F0'
   },
   actionButton: {
-    backgroundColor: '#1A1A1A',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center'
+    backgroundColor: '#0056D2',
+    paddingVertical: 16,
+    borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8
   },
   disabledButton: {
-    backgroundColor: '#AAAAAA'
+    backgroundColor: '#94A3B8',
+    elevation: 0,
+    shadowOpacity: 0
   },
   actionText: {
     color: '#FFFFFF',

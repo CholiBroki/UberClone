@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
 
 const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
   const handleChange = (field, value) => {
@@ -13,87 +14,141 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Datos del Vehículo</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="car" size={24} color="#0056D2" />
+          </View>
+          <Text style={styles.title}>Datos del Vehículo</Text>
+        </View>
 
-      {/* Lista Desplegable: Categoría */}
-      <Text style={styles.label}>Categoría del Vehículo</Text>
-      <View style={[styles.pickerContainer, touched.category && errors.category && styles.inputError]}>
-        <Picker
-          selectedValue={vehicleData.category}
-          onValueChange={(itemValue) => handleChange('category', itemValue)}
-        >
-          <Picker.Item label="Económico" value="economy" />
-          <Picker.Item label="XL" value="xl" />
-          <Picker.Item label="Premium" value="premium" />
-        </Picker>
-      </View>
+        {/* Categoría */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="pricetag-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Categoría del Vehículo</Text>
+          </View>
+          <View style={[styles.pickerContainer, touched.category && errors.category && styles.inputError]}>
+            <Picker
+              selectedValue={vehicleData.category}
+              onValueChange={(itemValue) => handleChange('category', itemValue)}
+              dropdownIconColor="#0056D2"
+            >
+              <Picker.Item label="Económico" value="economy" />
+              <Picker.Item label="XL" value="xl" />
+              <Picker.Item label="Premium" value="premium" />
+            </Picker>
+          </View>
+        </View>
 
-      <Text style={styles.label}>Placa del vehículo</Text>
-      <TextInput
-        style={[styles.input, touched.plate && errors.plate && styles.inputError]}
-        placeholder="Ej. ABC123"
-        value={vehicleData.plate}
-        onChangeText={(val) => handleChange('plate', val)}
-        autoCapitalize="characters"
-        maxLength={6}
-      />
-      {touched.plate && errors.plate && <Text style={styles.errorText}>{errors.plate}</Text>}
+        {/* Placa */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="barcode-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Placa del vehículo</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.plate && errors.plate && styles.inputError]}
+            placeholder="Ej. ABC123"
+            placeholderTextColor="#A0A0A0"
+            value={vehicleData.plate}
+            onChangeText={(val) => handleChange('plate', val)}
+            autoCapitalize="characters"
+            maxLength={6}
+          />
+          {touched.plate && errors.plate && <Text style={styles.errorText}>{errors.plate}</Text>}
+        </View>
 
-      <Text style={styles.label}>Marca</Text>
-      <TextInput
-        style={[styles.input, touched.brand && errors.brand && styles.inputError]}
-        placeholder="Ej. Chevrolet"
-        value={vehicleData.brand}
-        onChangeText={(val) => handleChange('brand', val)}
-        maxLength={30}
-      />
-      {touched.brand && errors.brand && <Text style={styles.errorText}>{errors.brand}</Text>}
+        {/* Marca */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="car-sport-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Marca</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.brand && errors.brand && styles.inputError]}
+            placeholder="Ej. Chevrolet"
+            placeholderTextColor="#A0A0A0"
+            value={vehicleData.brand}
+            onChangeText={(val) => handleChange('brand', val)}
+            maxLength={30}
+          />
+          {touched.brand && errors.brand && <Text style={styles.errorText}>{errors.brand}</Text>}
+        </View>
 
-      <Text style={styles.label}>Modelo</Text>
-      <TextInput
-        style={[styles.input, touched.model && errors.model && styles.inputError]}
-        placeholder="Ej. Onix"
-        value={vehicleData.model}
-        onChangeText={(val) => handleChange('model', val)}
-        maxLength={30}
-      />
-      {touched.model && errors.model && <Text style={styles.errorText}>{errors.model}</Text>}
+        {/* Modelo */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="settings-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Modelo</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.model && errors.model && styles.inputError]}
+            placeholder="Ej. Onix"
+            placeholderTextColor="#A0A0A0"
+            value={vehicleData.model}
+            onChangeText={(val) => handleChange('model', val)}
+            maxLength={30}
+          />
+          {touched.model && errors.model && <Text style={styles.errorText}>{errors.model}</Text>}
+        </View>
 
-      <Text style={styles.label}>Año</Text>
-      <TextInput
-        style={[styles.input, touched.year && errors.year && styles.inputError]}
-        placeholder="Ej. 2022"
-        keyboardType="numeric"
-        value={vehicleData.year}
-        onChangeText={(val) => handleChange('year', val)}
-        maxLength={4}
-      />
-      {touched.year && errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
+        {/* Año */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="calendar-number-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Año</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.year && errors.year && styles.inputError]}
+            placeholder="Ej. 2022"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="numeric"
+            value={vehicleData.year}
+            onChangeText={(val) => handleChange('year', val)}
+            maxLength={4}
+          />
+          {touched.year && errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
+        </View>
 
-      <Text style={styles.label}>Capacidad de pasajeros</Text>
-      <TextInput
-        style={[styles.input, touched.capacity && errors.capacity && styles.inputError]}
-        placeholder="Ej. 4 (Mínimo 6 si es XL)"
-        keyboardType="numeric"
-        value={vehicleData.capacity}
-        onChangeText={(val) => handleChange('capacity', val)}
-      />
-      {touched.capacity && errors.capacity && <Text style={styles.errorText}>{errors.capacity}</Text>}
+        {/* Capacidad */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="people-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Capacidad de pasajeros</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.capacity && errors.capacity && styles.inputError]}
+            placeholder="Ej. 4 (Mínimo 6 si es XL)"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="numeric"
+            value={vehicleData.capacity}
+            onChangeText={(val) => handleChange('capacity', val)}
+          />
+          {touched.capacity && errors.capacity && <Text style={styles.errorText}>{errors.capacity}</Text>}
+        </View>
 
-      {/* Lista Desplegable: Color */}
-      <Text style={styles.label}>Color</Text>
-      <View style={[styles.pickerContainer, touched.color && errors.color && styles.inputError]}>
-        <Picker
-          selectedValue={vehicleData.color}
-          onValueChange={(itemValue) => handleChange('color', itemValue)}
-        >
-          <Picker.Item label="Blanco" value="Blanco" />
-          <Picker.Item label="Negro" value="Negro" />
-          <Picker.Item label="Gris" value="Gris" />
-          <Picker.Item label="Rojo" value="Rojo" />
-          <Picker.Item label="Azul" value="Azul" />
-        </Picker>
+        {/* Color */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="color-palette-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Color</Text>
+          </View>
+          <View style={[styles.pickerContainer, touched.color && errors.color && styles.inputError]}>
+            <Picker
+              selectedValue={vehicleData.color}
+              onValueChange={(itemValue) => handleChange('color', itemValue)}
+              dropdownIconColor="#0056D2"
+            >
+              <Picker.Item label="Blanco" value="Blanco" />
+              <Picker.Item label="Negro" value="Negro" />
+              <Picker.Item label="Gris" value="Gris" />
+              <Picker.Item label="Rojo" value="Rojo" />
+              <Picker.Item label="Azul" value="Azul" />
+            </Picker>
+          </View>
+        </View>
       </View>
     </ScrollView>
   );
@@ -102,44 +157,82 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#FAF9F6'
+    paddingHorizontal: 14,
+    paddingVertical: 10
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 25,
+    borderWidth: 1,
+    borderColor: '#EBF2FB',
+    elevation: 3,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12
+  },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EBF3FF',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#1A1A1A'
+    color: '#0A2540'
+  },
+  fieldGroup: {
+    marginBottom: 16
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-    marginTop: 10,
-    marginBottom: 4
+    fontWeight: '700',
+    color: '#0A2540'
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 8,
-    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 15,
-    backgroundColor: '#FFFFFF'
+    backgroundColor: '#F8FAFC',
+    color: '#0A2540'
   },
   pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
     justifyContent: 'center'
   },
   inputError: {
-    borderColor: '#D32F2F'
+    borderColor: '#E53E3E',
+    backgroundColor: '#FFF5F5'
   },
   errorText: {
-    color: '#D32F2F',
+    color: '#E53E3E',
     fontSize: 12,
-    marginTop: 3
+    marginTop: 4,
+    fontWeight: '500'
   }
 });
 
