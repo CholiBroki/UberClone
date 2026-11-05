@@ -22,7 +22,6 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Tarjeta Principal */}
       <View style={styles.card}>
         <View style={styles.headerRow}>
           <View style={styles.iconBadge}>
@@ -31,31 +30,35 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
           <Text style={styles.title}>Datos Personales</Text>
         </View>
 
-        {/* Nombre */}
+        {/* Nombre completo */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="person-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Nombre completo</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.fullName && errors.fullName && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.fullName && styles.inputError]}
             placeholder="Ej. Robert De Jesús Julio González"
             placeholderTextColor="#A0A0A0"
             value={formData.fullName}
             onChangeText={(val) => handleChange('fullName', val)}
             maxLength={50}
           />
-          {touched.fullName && errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
+          {touched.hasSubmitted && errors.fullName ? (
+            <Text style={styles.errorText}>{errors.fullName}</Text>
+          ) : (
+            <Text style={styles.hintText}>Ingrese su nombre completo tal como figura en su documento.</Text>
+          )}
         </View>
 
-        {/* Documento */}
+        {/* Documento de identidad (Ícono cambiado a id-card-outline) */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
-            <Ionicons name="card-outline" size={18} color="#0056D2" />
+            <Ionicons name="id-card-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Documento de identidad</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.idNumber && errors.idNumber && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.idNumber && styles.inputError]}
             placeholder="Ej. 1063189230"
             placeholderTextColor="#A0A0A0"
             keyboardType="numeric"
@@ -63,17 +66,21 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
             onChangeText={(val) => handleChange('idNumber', val)}
             maxLength={10}
           />
-          {touched.idNumber && errors.idNumber && <Text style={styles.errorText}>{errors.idNumber}</Text>}
+          {touched.hasSubmitted && errors.idNumber ? (
+            <Text style={styles.errorText}>{errors.idNumber}</Text>
+          ) : (
+            <Text style={styles.hintText}>Debe tener entre 6 y 10 dígitos numéricos sin puntos ni comas.</Text>
+          )}
         </View>
 
-        {/* Celular */}
+        {/* Número de celular */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="call-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Número de celular</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.phone && errors.phone && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.phone && styles.inputError]}
             placeholder="Ej. 3054551840"
             placeholderTextColor="#A0A0A0"
             keyboardType="phone-pad"
@@ -81,17 +88,21 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
             onChangeText={(val) => handleChange('phone', val)}
             maxLength={10}
           />
-          {touched.phone && errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          {touched.hasSubmitted && errors.phone ? (
+            <Text style={styles.errorText}>{errors.phone}</Text>
+          ) : (
+            <Text style={styles.hintText}>Debe contener exactamente 10 dígitos numéricos.</Text>
+          )}
         </View>
 
-        {/* Correo */}
+        {/* Correo electrónico */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="mail-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Correo electrónico</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.email && errors.email && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.email && styles.inputError]}
             placeholder="correo@ejemplo.com"
             placeholderTextColor="#A0A0A0"
             keyboardType="email-address"
@@ -99,7 +110,11 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
             value={formData.email}
             onChangeText={(val) => handleChange('email', val)}
           />
-          {touched.email && errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          {touched.hasSubmitted && errors.email ? (
+            <Text style={styles.errorText}>{errors.email}</Text>
+          ) : (
+            <Text style={styles.hintText}>Formato válido de correo electrónico (ej. nombre@dominio.com).</Text>
+          )}
         </View>
 
         {/* Fecha de nacimiento */}
@@ -110,14 +125,14 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
           </View>
           <TouchableOpacity 
             onPress={() => setShowDatePicker(true)}
-            style={[styles.input, styles.datePickerButton, touched.birthDate && errors.birthDate && styles.inputError]}
+            style={[styles.input, styles.datePickerButton, touched.hasSubmitted && errors.birthDate && styles.inputError]}
           >
-            <Text style={{ color: formData.birthDate ? '#1A2B4C' : '#A0A0A0', fontSize: 15 }}>
-              {formData.birthDate ? formData.birthDate : 'Ej. 2000-01-21'}
+            <Text style={{ color: formData.birthDate ? '#0A2540' : '#A0A0A0', fontSize: 15 }}>
+              {formData.birthDate ? formData.birthDate : 'Seleccionar fecha de nacimiento...'}
             </Text>
             <Ionicons name="chevron-down" size={20} color="#A0A0A0" />
           </TouchableOpacity>
-          {touched.birthDate && errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
+          {touched.hasSubmitted && errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
         </View>
 
         {showDatePicker && (
@@ -130,13 +145,13 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
           />
         )}
 
-        {/* Género (Por defecto en Seleccionar género...) */}
+        {/* Género */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="transgender-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Género</Text>
           </View>
-          <View style={[styles.pickerContainer, touched.gender && errors.gender && styles.inputError]}>
+          <View style={[styles.pickerContainer, touched.hasSubmitted && errors.gender && styles.inputError]}>
             <Picker
               selectedValue={formData.gender}
               onValueChange={(itemValue) => handleChange('gender', itemValue)}
@@ -148,7 +163,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
               <Picker.Item label="Otro" value="Otro" />
             </Picker>
           </View>
-          {touched.gender && errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+          {touched.hasSubmitted && errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
         </View>
 
         {/* Idioma */}
@@ -157,7 +172,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
             <Ionicons name="globe-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Idioma de la App</Text>
           </View>
-          <View style={[styles.pickerContainer, touched.language && errors.language && styles.inputError]}>
+          <View style={styles.pickerContainer}>
             <Picker
               selectedValue={formData.language}
               onValueChange={(itemValue) => handleChange('language', itemValue)}
@@ -256,7 +271,13 @@ const styles = StyleSheet.create({
     color: '#E53E3E',
     fontSize: 12,
     marginTop: 4,
-    fontWeight: '500'
+    fontWeight: '600'
+  },
+  hintText: {
+    color: '#4A5568',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '400'
   }
 });
 

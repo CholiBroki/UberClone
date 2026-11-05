@@ -23,23 +23,25 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
           <Text style={styles.title}>Datos del Vehículo</Text>
         </View>
 
-        {/* Categoría */}
+        {/* Categoría (Inicia en Seleccionar categoría...) */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="pricetag-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Categoría del Vehículo</Text>
           </View>
-          <View style={[styles.pickerContainer, touched.category && errors.category && styles.inputError]}>
+          <View style={[styles.pickerContainer, touched.hasSubmitted && errors.category && styles.inputError]}>
             <Picker
               selectedValue={vehicleData.category}
               onValueChange={(itemValue) => handleChange('category', itemValue)}
               dropdownIconColor="#0056D2"
             >
+              <Picker.Item label="Seleccionar categoría..." value="" color="#A0A0A0" />
               <Picker.Item label="Económico" value="economy" />
               <Picker.Item label="XL" value="xl" />
               <Picker.Item label="Premium" value="premium" />
             </Picker>
           </View>
+          {touched.hasSubmitted && errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
         </View>
 
         {/* Placa */}
@@ -49,7 +51,7 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             <Text style={styles.label}>Placa del vehículo</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.plate && errors.plate && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.plate && styles.inputError]}
             placeholder="Ej. ABC123"
             placeholderTextColor="#A0A0A0"
             value={vehicleData.plate}
@@ -57,7 +59,11 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             autoCapitalize="characters"
             maxLength={6}
           />
-          {touched.plate && errors.plate && <Text style={styles.errorText}>{errors.plate}</Text>}
+          {touched.hasSubmitted && errors.plate ? (
+            <Text style={styles.errorText}>{errors.plate}</Text>
+          ) : (
+            <Text style={styles.hintText}>Placa colombiana de 3 letras y 3 números en mayúsculas.</Text>
+          )}
         </View>
 
         {/* Marca */}
@@ -67,14 +73,14 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             <Text style={styles.label}>Marca</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.brand && errors.brand && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.brand && styles.inputError]}
             placeholder="Ej. Chevrolet"
             placeholderTextColor="#A0A0A0"
             value={vehicleData.brand}
             onChangeText={(val) => handleChange('brand', val)}
             maxLength={30}
           />
-          {touched.brand && errors.brand && <Text style={styles.errorText}>{errors.brand}</Text>}
+          {touched.hasSubmitted && errors.brand && <Text style={styles.errorText}>{errors.brand}</Text>}
         </View>
 
         {/* Modelo */}
@@ -84,14 +90,14 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             <Text style={styles.label}>Modelo</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.model && errors.model && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.model && styles.inputError]}
             placeholder="Ej. Onix"
             placeholderTextColor="#A0A0A0"
             value={vehicleData.model}
             onChangeText={(val) => handleChange('model', val)}
             maxLength={30}
           />
-          {touched.model && errors.model && <Text style={styles.errorText}>{errors.model}</Text>}
+          {touched.hasSubmitted && errors.model && <Text style={styles.errorText}>{errors.model}</Text>}
         </View>
 
         {/* Año */}
@@ -101,7 +107,7 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             <Text style={styles.label}>Año</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.year && errors.year && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.year && styles.inputError]}
             placeholder="Ej. 2022"
             placeholderTextColor="#A0A0A0"
             keyboardType="numeric"
@@ -109,7 +115,11 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             onChangeText={(val) => handleChange('year', val)}
             maxLength={4}
           />
-          {touched.year && errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
+          {touched.hasSubmitted && errors.year ? (
+            <Text style={styles.errorText}>{errors.year}</Text>
+          ) : (
+            <Text style={styles.hintText}>Año de fabricación de 4 dígitos (Ej. 2022).</Text>
+          )}
         </View>
 
         {/* Capacidad */}
@@ -119,35 +129,38 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
             <Text style={styles.label}>Capacidad de pasajeros</Text>
           </View>
           <TextInput
-            style={[styles.input, touched.capacity && errors.capacity && styles.inputError]}
+            style={[styles.input, touched.hasSubmitted && errors.capacity && styles.inputError]}
             placeholder="Ej. 4 (Mínimo 6 si es XL)"
             placeholderTextColor="#A0A0A0"
             keyboardType="numeric"
             value={vehicleData.capacity}
             onChangeText={(val) => handleChange('capacity', val)}
           />
-          {touched.capacity && errors.capacity && <Text style={styles.errorText}>{errors.capacity}</Text>}
+          {touched.hasSubmitted && errors.capacity && <Text style={styles.errorText}>{errors.capacity}</Text>}
         </View>
 
-        {/* Color */}
+        {/* Color (Inicia en Seleccionar color...) */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="color-palette-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Color</Text>
           </View>
-          <View style={[styles.pickerContainer, touched.color && errors.color && styles.inputError]}>
+          <View style={[styles.pickerContainer, touched.hasSubmitted && errors.color && styles.inputError]}>
             <Picker
               selectedValue={vehicleData.color}
               onValueChange={(itemValue) => handleChange('color', itemValue)}
               dropdownIconColor="#0056D2"
             >
+              <Picker.Item label="Seleccionar color..." value="" color="#A0A0A0" />
               <Picker.Item label="Blanco" value="Blanco" />
               <Picker.Item label="Negro" value="Negro" />
               <Picker.Item label="Gris" value="Gris" />
               <Picker.Item label="Rojo" value="Rojo" />
               <Picker.Item label="Azul" value="Azul" />
+              <Picker.Item label="Plata" value="Plata" />
             </Picker>
           </View>
+          {touched.hasSubmitted && errors.color && <Text style={styles.errorText}>{errors.color}</Text>}
         </View>
       </View>
     </ScrollView>
@@ -232,7 +245,13 @@ const styles = StyleSheet.create({
     color: '#E53E3E',
     fontSize: 12,
     marginTop: 4,
-    fontWeight: '500'
+    fontWeight: '600'
+  },
+  hintText: {
+    color: '#4A5568',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '400'
   }
 });
 

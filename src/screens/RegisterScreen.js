@@ -11,6 +11,7 @@ const RegisterScreen = () => {
   const [submittedTab1, setSubmittedTab1] = useState(false);
   const [submittedTab2, setSubmittedTab2] = useState(false);
 
+  // Estados limpios sin predeterminados
   const [personalData, setPersonalData] = useState({
     fullName: '',
     idNumber: '',
@@ -22,12 +23,12 @@ const RegisterScreen = () => {
   });
 
   const [vehicleData, setVehicleData] = useState({
-    category: 'economy',
+    category: '',
     plate: '',
     brand: '',
     model: '',
     year: '',
-    color: 'Blanco',
+    color: '',
     capacity: ''
   });
 
@@ -54,21 +55,19 @@ const RegisterScreen = () => {
     } else if (activeTab === 2) {
       setSubmittedTab2(true);
       if (isPersonalValid && isVehicleValid) {
-        // En el futuro, esto avanzará a la Pestaña 3 (Documentos)
         console.log('Pestaña 2 validada correctamente');
       }
     }
   };
 
-  const isCurrentTabValid = activeTab === 1 ? isPersonalValid : (isPersonalValid && isVehicleValid);
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2545" />
 
-      {/* Header Superior Azul Curvo con respeto al Notch */}
+      {/* Header Superior Azul Curvo */}
       <View style={styles.topBanner}>
         <View style={styles.tabHeader}>
+          {/* Pestaña Personales (sin numero) */}
           <TouchableOpacity 
             style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
             onPress={() => handleTabPress(1)}
@@ -81,12 +80,13 @@ const RegisterScreen = () => {
                   <Text style={styles.stepText}>1</Text>
                 </View>
               )}
-              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>1. Personales</Text>
+              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>Personales</Text>
             </View>
           </TouchableOpacity>
 
           <View style={styles.stepDivider} />
 
+          {/* Pestaña Vehículo (sin numero) */}
           <TouchableOpacity 
             style={[
               styles.tabButton, 
@@ -108,7 +108,7 @@ const RegisterScreen = () => {
                 activeTab === 2 && styles.activeTabText,
                 !isPersonalValid && styles.tabDisabledText
               ]}>
-                2. Vehículo
+                Vehículo
               </Text>
             </View>
           </TouchableOpacity>
@@ -123,12 +123,7 @@ const RegisterScreen = () => {
             setFormData={setPersonalData} 
             errors={personalErrors}
             touched={{
-              fullName: submittedTab1 || personalData.fullName.length > 0,
-              idNumber: submittedTab1 || personalData.idNumber.length > 0,
-              phone: submittedTab1 || personalData.phone.length > 0,
-              email: submittedTab1 || personalData.email.length > 0,
-              birthDate: submittedTab1 || personalData.birthDate.length > 0,
-              gender: submittedTab1 || personalData.gender.length > 0
+              hasSubmitted: submittedTab1
             }}
           />
         )}
@@ -138,11 +133,7 @@ const RegisterScreen = () => {
             setVehicleData={setVehicleData} 
             errors={vehicleErrors}
             touched={{
-              plate: submittedTab2 || vehicleData.plate.length > 0,
-              brand: submittedTab2 || vehicleData.brand.length > 0,
-              model: submittedTab2 || vehicleData.model.length > 0,
-              year: submittedTab2 || vehicleData.year.length > 0,
-              capacity: submittedTab2 || vehicleData.capacity.length > 0
+              hasSubmitted: submittedTab2
             }}
           />
         )}
@@ -151,7 +142,7 @@ const RegisterScreen = () => {
       {/* Footer con Botón Continuar */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.actionButton, !isCurrentTabValid && styles.disabledButton]}
+          style={styles.actionButton}
           onPress={handleNextOrSubmit}
         >
           <Text style={styles.actionText}>Continuar</Text>
@@ -255,11 +246,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8
-  },
-  disabledButton: {
-    backgroundColor: '#94A3B8',
-    elevation: 0,
-    shadowOpacity: 0
   },
   actionText: {
     color: '#FFFFFF',
