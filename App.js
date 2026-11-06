@@ -1,6 +1,6 @@
 import React from 'react';
-import RegisterScreen from './src/screens/RegisterScreen';
+import HomeScreen from './src/screens/HomeScreen';
 
 export default function App() {
-  return <RegisterScreen />;
+  return <HomeScreen driverStatus="Aprobado" />;
 }

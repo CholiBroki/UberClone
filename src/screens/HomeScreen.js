@@ -12,73 +12,21 @@ import {
   Alert
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { useDriverLocation } from '../hooks/useDriverLocation';
 import IncomingRequestModal from '../components/IncomingRequestModal';
 
 const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
   const [isAvailable, setIsAvailable] = useState(false);
-  const [location, setLocation] = useState({
-    latitude: 6.2442,
-    longitude: -75.5812,
-    latitudeDelta: 0.015,
-    longitudeDelta: 0.015,
-  });
+  const { location } = useDriverLocation(isAvailable, driverStatus);
   
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Solicitud de permisos de ubicación
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se requiere acceso a la ubicación para operar como conductor.');
-        return;
-      }
-
-      let currentLoc = await Location.getCurrentPositionAsync({});
-      setLocation(prev => ({
-        ...prev,
-        latitude: currentLoc.coords.latitude,
-        longitude: currentLoc.coords.longitude,
-      }));
-    })();
-  }, []);
-
-  // Seguimiento de ubicación en tiempo real mientras esté 'Disponible'
-  useEffect(() => {
-    let subscription = null;
-
-    if (isAvailable) {
-      console.log('Iniciando seguimiento de ubicación...');
-      (async () => {
-        subscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000,
-            distanceInterval: 10,
-          },
-          (newLocation) => {
-            const { latitude, longitude } = newLocation.coords;
-            setLocation(prev => ({ ...prev, latitude, longitude }));
-          }
-        );
-      })();
-    }
-
-    return () => {
-      if (subscription) {
-        console.log('Deteniendo seguimiento de ubicación (Limpieza useEffect)...');
-        subscription.remove();
-      }
-    };
-  }, [isAvailable]);
-
-  // Simulación: Generar viaje entrante a los 4 segundos de conectarse
+  // Simulación: Generar viaje entrante a los 4 segundos de estar Disponible
   useEffect(() => {
     let timeout = null;
-    if (isAvailable && !incomingRequest) {
+    if (isAvailable && driverStatus === 'Aprobado' && !incomingRequest) {
       timeout = setTimeout(() => {
         const mockTrip = {
           id: 'TRIP_101',
@@ -98,13 +46,13 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
     return () => {
       if (timeout) clearTimeout(timeout);
     };
-  }, [isAvailable, incomingRequest]);
+  }, [isAvailable, driverStatus, incomingRequest]);
 
   const handleToggleAvailability = (value) => {
     if (driverStatus === 'Pendiente') {
       Alert.alert(
         'Cuenta en Revisión',
-        'Tu solicitud de registro se encuentra Pendiente de aprobación. No puedes conectarte hasta que un administrador revise tus documentos.'
+        'Tu solicitud de registro se encuentra Pendiente de aprobación. No puedes ponerte Disponible hasta que tus documentos sean verificados.'
       );
       setIsAvailable(false);
       return;
@@ -167,7 +115,7 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
         <View style={styles.headerStatusBadge}>
           <View style={[styles.statusDot, { backgroundColor: isAvailable ? '#22C55E' : '#EF4444' }]} />
           <Text style={styles.headerStatusText}>
-            {isAvailable ? 'Conectado' : 'Desconectado'}
+            {isAvailable ? 'Disponible' : 'No disponible'}
           </Text>
         </View>
       </View>
@@ -177,7 +125,7 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
         <View style={styles.switchRow}>
           <View style={styles.switchInfo}>
             <Text style={styles.switchTitle}>
-              {isAvailable ? 'Estás Disponible' : 'Estás Desconectado'}
+              {isAvailable ? 'Disponible' : 'No disponible'}
             </Text>
             <Text style={styles.switchSubtitle}>
               {isAvailable
