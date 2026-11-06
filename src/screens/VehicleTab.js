@@ -17,17 +17,15 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería para seleccionar la foto del vehículo.');
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.7,
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
       handleChange('vehiclePhoto', result.assets[0].uri);
     }
@@ -36,30 +34,37 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
   const takeWithCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara para tomar la foto del vehículo.');
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara.');
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.7,
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
       handleChange('vehiclePhoto', result.assets[0].uri);
     }
   };
 
-  const handleSelectVehiclePhoto = () => {
+  const handlePhotoOptions = () => {
+    const options = [
+      { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
+      { text: 'Elegir de Galería', onPress: pickFromGallery }
+    ];
+
+    if (vehicleData.vehiclePhoto) {
+      options.push({
+        text: 'Eliminar foto',
+        onPress: () => handleChange('vehiclePhoto', null)
+      });
+    }
+
     Alert.alert(
       'Foto del Vehículo',
-      '¿De dónde deseas obtener la foto del carro?',
-      [
-        { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
-        { text: 'Elegir de la Galería', onPress: pickFromGallery },
-        { text: 'Cancelar', style: 'cancel' }
-      ]
+      '¿Qué deseas hacer con la foto del vehículo?',
+      options,
+      { cancelable: true } 
     );
   };
 
@@ -73,13 +78,13 @@ const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
           <Text style={styles.title}>Datos del Vehículo</Text>
         </View>
 
-        {/* Foto del Vehículo con selector */}
+        {/* Foto del Vehículo */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="image-outline" size={18} color="#0056D2" />
             <Text style={styles.label}>Foto del vehículo</Text>
           </View>
-          <TouchableOpacity onPress={handleSelectVehiclePhoto} style={styles.vehiclePhotoCard}>
+          <TouchableOpacity onPress={handlePhotoOptions} style={styles.vehiclePhotoCard}>
             {vehicleData.vehiclePhoto ? (
               <Image source={{ uri: vehicleData.vehiclePhoto }} style={styles.vehiclePhotoPreview} />
             ) : (

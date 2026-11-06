@@ -21,58 +21,60 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
     }
   };
 
-  // 1. Abrir Galería
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería para seleccionar la foto.');
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
       handleChange('profilePhoto', result.assets[0].uri);
     }
   };
 
-  // 2. Tomar Foto con la Cámara
   const takeWithCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara para tomar la foto de perfil.');
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara.');
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
-      cameraType: ImagePicker.CameraType.front, // Abre cámara frontal por defecto para selfie
+      cameraType: ImagePicker.CameraType.front,
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
       handleChange('profilePhoto', result.assets[0].uri);
     }
   };
 
-  // Menu desplegable de seleccion
-  const handleSelectPhotoOptions = () => {
-    Alert.alert(
-      'Foto de Perfil',
-      '¿De dónde deseas obtener tu foto?',
-      [
+  const handlePhotoOptions = () => {
+      const options = [
         { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
-        { text: 'Elegir de la Galería', onPress: pickFromGallery },
-        { text: 'Cancelar', style: 'cancel' }
-      ]
-    );
-  };
+        { text: 'Elegir de Galería', onPress: pickFromGallery }
+      ];
+  
+      if (formData.profilePhoto) {
+        options.push({
+          text: 'Eliminar foto',
+          onPress: () => handleChange('profilePhoto', null)
+        });
+      }
+  
+      Alert.alert(
+        'Foto de Perfil',
+        '¿Qué deseas hacer con tu foto de perfil?',
+        options,
+        { cancelable: true } 
+      );
+    };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -84,9 +86,9 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
           <Text style={styles.title}>Datos Personales</Text>
         </View>
 
-        {/* Foto de Perfil con menú de cámara/galería */}
+        {/* Foto de Perfil */}
         <View style={styles.photoContainer}>
-          <TouchableOpacity onPress={handleSelectPhotoOptions} style={styles.avatarButton}>
+          <TouchableOpacity onPress={handlePhotoOptions} style={styles.avatarButton}>
             {formData.profilePhoto ? (
               <Image source={{ uri: formData.profilePhoto }} style={styles.avatarImage} />
             ) : (
@@ -96,7 +98,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
               </View>
             )}
           </TouchableOpacity>
-          <Text style={styles.photoHint}>Foto de perfil (Rostro visible)</Text>
+          <Text style={styles.photoHint}>Foto de perfil (Toca para cambiar o eliminar)</Text>
           {touched.hasSubmitted && errors.profilePhoto && (
             <Text style={styles.errorText}>{errors.profilePhoto}</Text>
           )}

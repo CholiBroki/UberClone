@@ -81,3 +81,49 @@ export const validateVehicleData = (data) => {
 
   return errors;
 };
+
+export const validateDocumentsData = (data, vehicleYear) => {
+  const errors = {};
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  if (!data.licenseFront) errors.licenseFront = 'La foto frontal de la licencia es obligatoria.';
+  if (!data.licenseBack) errors.licenseBack = 'La foto posterior de la licencia es obligatoria.';
+  if (!data.licenseNumber || data.licenseNumber.trim().length < 5) {
+    errors.licenseNumber = 'Ingrese un número de licencia válido.';
+  }
+  if (!data.licenseExpiry) {
+    errors.licenseExpiry = 'La fecha de vencimiento de la licencia es obligatoria.';
+  } else if (data.licenseExpiry <= todayStr) {
+    errors.licenseExpiry = 'La licencia se encuentra vencida. Ingrese una fecha posterior a hoy.';
+  }
+
+  if (!data.soatFile) errors.soatFile = 'El documento o foto del SOAT es obligatorio.';
+  if (!data.soatExpiry) {
+    errors.soatExpiry = 'La fecha de vencimiento del SOAT es obligatoria.';
+  } else if (data.soatExpiry <= todayStr) {
+    errors.soatExpiry = 'El SOAT se encuentra vencido. Ingrese una fecha posterior a hoy.';
+  }
+
+  const currentYear = new Date().getFullYear();
+  const vYear = parseInt(vehicleYear) || currentYear;
+  const isExempt = (currentYear - vYear) <= 5;
+
+  if (!isExempt) {
+    if (!data.technoFile) errors.technoFile = 'La revisión técnico-mecánica es obligatoria para vehículos con más de 5 años.';
+    if (!data.technoExpiry) {
+      errors.technoExpiry = 'La fecha de vencimiento de la técnico-mecánica es obligatoria.';
+    } else if (data.technoExpiry <= todayStr) {
+      errors.technoExpiry = 'La técnico-mecánica se encuentra vencida. Ingrese una fecha posterior a hoy.';
+    }
+  }
+
+  if (!data.mpEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.mpEmail)) {
+    errors.mpEmail = 'Ingrese un correo de Mercado Pago válido.';
+  }
+
+  if (!data.acceptedTerms) {
+    errors.acceptedTerms = 'Debe aceptar los Términos y Condiciones.';
+  }
+
+  return errors;
+};
