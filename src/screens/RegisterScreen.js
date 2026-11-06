@@ -6,6 +6,8 @@ import VehicleTab from './VehicleTab';
 import DocumentsTab from './DocumentsTab';
 import { validatePersonalData, validateVehicleData, validateDocumentsData } from '../utils/validators';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../service/firebase';
 
 const RegisterScreen = () => {
   const [activeTab, setActiveTab] = useState(1);
@@ -69,20 +71,21 @@ const RegisterScreen = () => {
     setActiveTab(tabIndex);
   };
 
-  const handleNextOrSubmit = () => {
-    if (activeTab === 1) {
-      setSubmittedTab1(true);
-      if (isPersonalValid) {
-        setActiveTab(2);
-      }
-    } else if (activeTab === 2) {
-      setSubmittedTab2(true);
-      if (isVehicleValid) {
-        setActiveTab(3);
-      }
-    } else if (activeTab === 3) {
-      setSubmittedTab3(true);
-      if (isPersonalValid && isVehicleValid && isDocsValid) {
+  const handleNextOrSubmit = async () => {
+  if (activeTab === 1) {
+    setSubmittedTab1(true);
+    if (isPersonalValid) {
+      setActiveTab(2);
+    }
+  } else if (activeTab === 2) {
+    setSubmittedTab2(true);
+    if (isVehicleValid) {
+      setActiveTab(3);
+    }
+  } else if (activeTab === 3) {
+    setSubmittedTab3(true);
+    if (isPersonalValid && isVehicleValid && isDocsValid) {
+      try {
         const newDriver = {
           ...personalData,
           vehicle: vehicleData,
@@ -90,15 +93,22 @@ const RegisterScreen = () => {
           status: 'Pendiente',
           registeredAt: new Date().toISOString()
         };
+
+        await addDoc(collection(db, 'drivers'), newDriver);
+
         console.log('Solicitud enviada con éxito. Estado: Pendiente');
         Alert.alert(
           '¡Registro Completado!',
           'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
           [{ text: 'Aceptar' }]
         );
+      } catch (error) {
+        console.log('Error al guardar:', error);
+        Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
       }
     }
-  };
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
