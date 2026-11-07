@@ -1,16 +1,6 @@
 // AI-assisted: see docs/AI_LOG.md #10
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Switch,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-  Alert
-} from 'react-native';
+import {View, Text, StyleSheet, Switch, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useDriverLocation } from '../hooks/useDriverLocation';

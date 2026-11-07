@@ -1,34 +1,19 @@
-// AI-assisted: see docs/AI_LOG.md #14
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-  Alert
-} from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #13
+import React from 'react';
+import {View,Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Alert,} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-const LoginScreen = ({ onGoToRegister }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoginMode, setIsLoginMode] = useState(false);
-
-  const handleSubmit = () => {
-    if (!email || !password) {
-      Alert.alert('Campos requeridos', 'Por favor ingresa tu correo y contraseña.');
-      return;
-    }
-
-    if (isLoginMode) {
-      // Modo Iniciar Sesión: solo valida campos y muestra mensaje, no redirige a ningún screen
-      Alert.alert('Iniciar sesión', 'Funcionalidad de inicio de sesión en construcción.');
+export default function LoginScreen({ onLogin, onNavigateRegister }) {
+  // Manejador temporal para Iniciar Sesion (no navega a ninguna pantalla por ahora)
+  const handleLoginPress = () => {
+    if (onLogin) {
+      onLogin();
     } else {
-      // Modo Crear Cuenta: envía a la pantalla de registro de 3 pestañas
-      if (onGoToRegister) onGoToRegister({ email, password });
+      Alert.alert(
+        'Próximamente',
+        'El inicio de sesión se habilitará en la siguiente fase.',
+        [{ text: 'Entendido' }]
+      );
     }
   };
 
@@ -36,122 +21,169 @@ const LoginScreen = ({ onGoToRegister }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <View style={styles.content}>
-        {/* Título Principal */}
-        <Text style={styles.title}>UberClone Conductor</Text>
-
-        {/* Campo Correo */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Correo</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="ejemplo@correo.com"
-            placeholderTextColor="#A0A0A0"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+      {/* Sección Superior: Icono con Carrito y Tipografía Stylized */}
+      <View style={styles.headerContainer}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="car" size={48} color="#FFFFFF" />
         </View>
 
-        {/* Campo Contraseña */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Contraseña</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#A0A0A0"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
+        <Text style={styles.brandTitle}>UberClone</Text>
 
-        {/* Botón Principal Azul */}
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>
-            {isLoginMode ? 'Iniciar sesión' : 'Crear cuenta'}
-          </Text>
+        <Text style={styles.mainHeading}>
+          Conduce, genera ingresos{"\n"}y llega <Text style={styles.blueAccent}>más lejos</Text>
+        </Text>
+
+        <Text style={styles.subHeading}>
+          Únete a nuestra plataforma y sé parte de una comunidad de conductores.
+        </Text>
+      </View>
+
+      {/* Sección Inferior: Botones de Acción */}
+      <View style={styles.buttonContainer}>
+        {/* Botón Iniciar sesión (sin navegación por ahora) */}
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={handleLoginPress}
+          activeOpacity={0.85}
+        >
+          <View style={styles.leftBtnGroup}>
+            <Ionicons name="person" size={20} color="#FFFFFF" />
+            <View style={styles.verticalDividerPrimary} />
+            <Text style={styles.primaryButtonText}>Iniciar sesión</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* Enlace de Alternar Modo */}
+        {/* Botón Registrarse (Redirige a las pestañas de registro) */}
         <TouchableOpacity
-          style={styles.switchModeButton}
-          onPress={() => setIsLoginMode(!isLoginMode)}
+          style={styles.secondaryButton}
+          onPress={onNavigateRegister}
+          activeOpacity={0.85}
         >
-          <Text style={styles.switchModeText}>
-            {isLoginMode ? 'No tengo cuenta' : 'Ya tengo cuenta'}
-          </Text>
+          <View style={styles.leftBtnGroup}>
+            <Ionicons name="person-add" size={20} color="#0052CC" />
+            <View style={styles.verticalDividerSecondary} />
+            <Text style={styles.secondaryButtonText}>Registrarse</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#0052CC" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    justifyContent: 'space-between',
+    paddingHorizontal: 28,
+    paddingTop: 50,
+    paddingBottom: 36,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
+  headerContainer: {
+    alignItems: 'center',
+    marginTop: 30,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0A2540',
-    marginBottom: 32,
-  },
-  fieldGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 8,
-  },
-  input: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#F8FAFC',
-    color: '#0A2540',
-  },
-  primaryButton: {
-    height: 54,
-    backgroundColor: '#0056D2',
-    borderRadius: 30,
+  iconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#0052CC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
     marginBottom: 20,
-    elevation: 4,
-    shadowColor: '#0056D2',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0052CC',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  brandTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#0052CC',
+    marginBottom: 24,
+    letterSpacing: -0.5,
+  },
+  mainHeading: {
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+    color: '#091E42',
+    lineHeight: 36,
+    marginBottom: 14,
+    letterSpacing: -0.3,
+  },
+  blueAccent: {
+    color: '#0052CC',
+    fontWeight: '800',
+  },
+  subHeading: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#6B778C',
+    textAlign: 'center',
+    paddingHorizontal: 10,
+    lineHeight: 23,
+    letterSpacing: 0.1,
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 10,
+  },
+  primaryButton: {
+    backgroundColor: '#0052CC',
+    borderRadius: 30,
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+    shadowColor: '#0052CC',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 8,
+    elevation: 4,
+  },
+  secondaryButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.8,
+    borderColor: '#0052CC',
+    borderRadius: 30,
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+  },
+  leftBtnGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verticalDividerPrimary: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 14,
+  },
+  verticalDividerSecondary: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#DFE1E6',
+    marginHorizontal: 14,
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  switchModeButton: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  switchModeText: {
-    fontSize: 15,
-    color: '#0056D2',
-    fontWeight: '600',
+  secondaryButtonText: {
+    color: '#0052CC',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
-
-export default LoginScreen;

@@ -1,6 +1,6 @@
-// AI-assisted: see docs/AI_LOG.md #7
+// AI-assisted: see docs/AI_LOG.md #13
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert,KeyboardAvoidingView} from 'react-native';
 import PersonalDataTab from './PersonalDataTab';
 import VehicleTab from './VehicleTab';
 import DocumentsTab from './DocumentsTab';
@@ -72,174 +72,181 @@ const RegisterScreen = () => {
   };
 
   const handleNextOrSubmit = async () => {
-  if (activeTab === 1) {
-    setSubmittedTab1(true);
-    if (isPersonalValid) {
-      setActiveTab(2);
-    }
-  } else if (activeTab === 2) {
-    setSubmittedTab2(true);
-    if (isVehicleValid) {
-      setActiveTab(3);
-    }
-  } else if (activeTab === 3) {
-    setSubmittedTab3(true);
-    if (isPersonalValid && isVehicleValid && isDocsValid) {
-      try {
-        const newDriver = {
-          ...personalData,
-          vehicle: vehicleData,
-          documents: docsData,
-          status: 'Pendiente',
-          registeredAt: new Date().toISOString()
-        };
+    if (activeTab === 1) {
+      setSubmittedTab1(true);
+      if (isPersonalValid) {
+        setActiveTab(2);
+      }
+    } else if (activeTab === 2) {
+      setSubmittedTab2(true);
+      if (isVehicleValid) {
+        setActiveTab(3);
+      }
+    } else if (activeTab === 3) {
+      setSubmittedTab3(true);
+      if (isPersonalValid && isVehicleValid && isDocsValid) {
+        try {
+          const newDriver = {
+            ...personalData,
+            vehicle: vehicleData,
+            documents: docsData,
+            status: 'Pendiente',
+            registeredAt: new Date().toISOString()
+          };
 
-        await addDoc(collection(db, 'drivers'), newDriver);
+          await addDoc(collection(db, 'drivers'), newDriver);
 
-        console.log('Solicitud enviada con éxito. Estado: Pendiente');
-        Alert.alert(
-          '¡Registro Completado!',
-          'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
-          [{ text: 'Aceptar' }]
-        );
-      } catch (error) {
-        console.log('Error al guardar:', error);
-        Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+          console.log('Solicitud enviada con éxito. Estado: Pendiente');
+          Alert.alert(
+            '¡Registro Completado!',
+            'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
+            [{ text: 'Aceptar' }]
+          );
+        } catch (error) {
+          console.log('Error al guardar:', error);
+          Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+        }
       }
     }
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2545" />
 
-      {/* Header Superior Azul Curvo */}
-      <View style={styles.topBanner}>
-        <View style={styles.tabHeader}>
-          {/* Pestaña 1 */}
-          <TouchableOpacity 
-            style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
-            onPress={() => handleTabPress(1)}
+      {/* Contenedor adaptativo completo */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
+      >
+        {/* Header Superior Azul Curvo */}
+        <View style={styles.topBanner}>
+          <View style={styles.tabHeader}>
+            {/* Pestaña 1 */}
+            <TouchableOpacity 
+              style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
+              onPress={() => handleTabPress(1)}
+            >
+              <View style={styles.tabRow}>
+                {isPersonalValid ? (
+                  <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                ) : (
+                  <View style={[styles.stepNumber, activeTab === 1 && styles.activeStepNumber]}>
+                    <Text style={styles.stepText}>1</Text>
+                  </View>
+                )}
+                <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>Personales</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.stepDivider} />
+
+            {/* Pestaña 2 */}
+            <TouchableOpacity 
+              style={[
+                styles.tabButton, 
+                activeTab === 2 && styles.activeTabButton,
+                !isPersonalValid && styles.tabDisabled
+              ]}
+              onPress={() => handleTabPress(2)}
+            >
+              <View style={styles.tabRow}>
+                {isVehicleValid ? (
+                  <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                ) : (
+                  <View style={[styles.stepNumber, activeTab === 2 && styles.activeStepNumber]}>
+                    <Text style={styles.stepText}>2</Text>
+                  </View>
+                )}
+                <Text style={[
+                  styles.tabText, 
+                  activeTab === 2 && styles.activeTabText,
+                  !isPersonalValid && styles.tabDisabledText
+                ]}>
+                  Vehículo
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.stepDivider} />
+
+            {/* Pestaña 3 */}
+            <TouchableOpacity 
+              style={[
+                styles.tabButton, 
+                activeTab === 3 && styles.activeTabButton,
+                (!isPersonalValid || !isVehicleValid) && styles.tabDisabled
+              ]}
+              onPress={() => handleTabPress(3)}
+            >
+              <View style={styles.tabRow}>
+                {isDocsValid ? (
+                  <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                ) : (
+                  <View style={[styles.stepNumber, activeTab === 3 && styles.activeStepNumber]}>
+                    <Text style={styles.stepText}>3</Text>
+                  </View>
+                )}
+                <Text style={[
+                  styles.tabText, 
+                  activeTab === 3 && styles.activeTabText,
+                  (!isPersonalValid || !isVehicleValid) && styles.tabDisabledText
+                ]}>
+                  Documentos
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Contenido dinámico */}
+        <View style={styles.tabContent}>
+          {activeTab === 1 && (
+            <PersonalDataTab 
+              formData={personalData} 
+              setFormData={setPersonalData} 
+              errors={personalErrors}
+              touched={{ hasSubmitted: submittedTab1 }}
+            />
+          )}
+          {activeTab === 2 && (
+            <VehicleTab 
+              vehicleData={vehicleData} 
+              setVehicleData={setVehicleData} 
+              errors={vehicleErrors}
+              touched={{ hasSubmitted: submittedTab2 }}
+            />
+          )}
+          {activeTab === 3 && (
+            <DocumentsTab 
+              docsData={docsData} 
+              setDocsData={setDocsData} 
+              errors={docsErrors}
+              touched={{ hasSubmitted: submittedTab3 }}
+              vehicleYear={vehicleData.year}
+            />
+          )}
+        </View>
+
+        {/* Footer dinámico flotando siempre visible encima del teclado */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleNextOrSubmit}
           >
-            <View style={styles.tabRow}>
-              {isPersonalValid ? (
-                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              ) : (
-                <View style={[styles.stepNumber, activeTab === 1 && styles.activeStepNumber]}>
-                  <Text style={styles.stepText}>1</Text>
-                </View>
-              )}
-              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>Personales</Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.stepDivider} />
-
-          {/* Pestaña 2 */}
-          <TouchableOpacity 
-            style={[
-              styles.tabButton, 
-              activeTab === 2 && styles.activeTabButton,
-              !isPersonalValid && styles.tabDisabled
-            ]}
-            onPress={() => handleTabPress(2)}
-          >
-            <View style={styles.tabRow}>
-              {isVehicleValid ? (
-                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              ) : (
-                <View style={[styles.stepNumber, activeTab === 2 && styles.activeStepNumber]}>
-                  <Text style={styles.stepText}>2</Text>
-                </View>
-              )}
-              <Text style={[
-                styles.tabText, 
-                activeTab === 2 && styles.activeTabText,
-                !isPersonalValid && styles.tabDisabledText
-              ]}>
-                Vehículo
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.stepDivider} />
-
-          {/* Pestaña 3 */}
-          <TouchableOpacity 
-            style={[
-              styles.tabButton, 
-              activeTab === 3 && styles.activeTabButton,
-              (!isPersonalValid || !isVehicleValid) && styles.tabDisabled
-            ]}
-            onPress={() => handleTabPress(3)}
-          >
-            <View style={styles.tabRow}>
-              {isDocsValid ? (
-                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              ) : (
-                <View style={[styles.stepNumber, activeTab === 3 && styles.activeStepNumber]}>
-                  <Text style={styles.stepText}>3</Text>
-                </View>
-              )}
-              <Text style={[
-                styles.tabText, 
-                activeTab === 3 && styles.activeTabText,
-                (!isPersonalValid || !isVehicleValid) && styles.tabDisabledText
-              ]}>
-                Documentos
-              </Text>
-            </View>
+            <Text style={styles.actionText}>
+              {activeTab === 3 ? 'Enviar registro' : 'Continuar'}
+            </Text>
+            <Ionicons 
+              name={activeTab === 3 ? "checkmark-done" : "arrow-forward"} 
+              size={18} 
+              color="#FFFFFF" 
+              style={{ marginLeft: 6 }} 
+            />
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Contenido dinámico */}
-      <View style={styles.tabContent}>
-        {activeTab === 1 && (
-          <PersonalDataTab 
-            formData={personalData} 
-            setFormData={setPersonalData} 
-            errors={personalErrors}
-            touched={{ hasSubmitted: submittedTab1 }}
-          />
-        )}
-        {activeTab === 2 && (
-          <VehicleTab 
-            vehicleData={vehicleData} 
-            setVehicleData={setVehicleData} 
-            errors={vehicleErrors}
-            touched={{ hasSubmitted: submittedTab2 }}
-          />
-        )}
-        {activeTab === 3 && (
-          <DocumentsTab 
-            docsData={docsData} 
-            setDocsData={setDocsData} 
-            errors={docsErrors}
-            touched={{ hasSubmitted: submittedTab3 }}
-            vehicleYear={vehicleData.year}
-          />
-        )}
-      </View>
-
-      {/* Footer dinámico */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handleNextOrSubmit}
-        >
-          <Text style={styles.actionText}>
-            {activeTab === 3 ? 'Enviar registro' : 'Continuar'}
-          </Text>
-          <Ionicons 
-            name={activeTab === 3 ? "checkmark-done" : "arrow-forward"} 
-            size={18} 
-            color="#FFFFFF" 
-            style={{ marginLeft: 6 }} 
-          />
-        </TouchableOpacity>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

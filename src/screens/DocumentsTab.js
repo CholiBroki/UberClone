@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #9
+// AI-assisted: see docs/AI_LOG.md #13
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -57,10 +57,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
 
     options.push({ text: 'Cancelar', onPress: () => {} });
 
-    Alert.alert(title, 'Selecciona una opción:', options,
-        { cancelable: true }
-    );
-    
+    Alert.alert(title, 'Selecciona una opción:', options, { cancelable: true });
   };
 
   const handleDocOrPdfUpload = (field, title) => {
@@ -101,9 +98,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
 
     options.push({ text: 'Cancelar', onPress: () => {} });
 
-    Alert.alert(title, 'Selecciona el formato a cargar:', options,
-        { cancelable: true }
-    );
+    Alert.alert(title, 'Selecciona el formato a cargar:', options, { cancelable: true });
   };
 
   return (
@@ -129,6 +124,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
             placeholder="Ej. 1063189230"
             placeholderTextColor="#A0A0A0"
             keyboardType="numeric"
+            maxLength={10}
             value={docsData.licenseNumber}
             onChangeText={(val) => handleChange('licenseNumber', val)}
           />
@@ -292,7 +288,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
           <View style={{ flex: 1 }}>
             <Text style={styles.commissionTitle}>Comisión de la Plataforma</Text>
             <Text style={styles.commissionText}>
-              Se aplicará una tarifa del <Text style={{ fontWeight: 'bold' }}>15%</Text> por cada servicio realizado. La liquidación se efectuará a través de Mercado Pago.
+              Se aplicará una tarifa del <Text style={{ fontWeight: 'bold' }}>20%</Text> por cada servicio realizado. La liquidación se efectuará a través de Mercado Pago.
             </Text>
           </View>
         </View>

@@ -1,0 +1,2952 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.claude/
+  settings.json
+assets/
+  android-icon-background.png
+  android-icon-foreground.png
+  android-icon-monochrome.png
+  favicon.png
+  icon.png
+  splash-icon.png
+src/
+  components/
+    IncomingRequestModal.js
+  config/
+    pricing.js
+  hooks/
+    useDriverLocation.js
+  screens/
+    DocumentsTab.js
+    HomeScreen.js
+    LoginScreen.js
+    PersonalDataTab.js
+    RegisterScreen.js
+    VehicleTab.js
+  service/
+    firebase.js
+  utils/
+    calculateFare.js
+    validators.js
+.env.example
+.gitignore
+AGENTS.md
+App.js
+app.json
+index.js
+LICENSE
+package.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".claude/settings.json">
+{
+  "enabledPlugins": {
+    "expo@claude-plugins-official": true
+  }
+}
+</file>
+
+<file path="src/components/IncomingRequestModal.js">
+// AI-assisted: see docs/AI_LOG.md #11
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  Alert
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { calculateFare } from '../utils/calculateFare';
+
+const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
+  const [timeLeft, setTimeLeft] = useState(15);
+
+  // useCallback para la función de rechazo automático
+  const handleAutoReject = useCallback(() => {
+    onReject('timeout');
+  }, [onReject]);
+
+  // Temporizador de 15 segundos con useEffect y función de limpieza
+  useEffect(() => {
+    if (!visible) {
+      setTimeLeft(15);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleAutoReject();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [visible, handleAutoReject]);
+
+  if (!requestData) return null;
+
+  // Cálculo de tarifa con calculateFare.js
+  const fareInfo = calculateFare({
+    distanceKm: requestData.distanceKm,
+    durationMin: requestData.durationMin,
+    category: requestData.category || 'economy',
+    tip: requestData.tip || 0
+  });
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={() => onReject('manual')}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          {/* Header con Temporizador */}
+          <View style={styles.header}>
+            <View style={styles.timerBadge}>
+              <Ionicons name="time-outline" size={18} color="#0056D2" />
+              <Text style={styles.timerText}>{timeLeft}s</Text>
+            </View>
+            <Text style={styles.headerTitle}>¡Nueva Solicitud de Viaje!</Text>
+          </View>
+
+          {/* Resumen de Ganancias */}
+          <View style={styles.earningsBox}>
+            <View>
+              <Text style={styles.earningsLabel}>Tu Ganancia Neta Est.</Text>
+              <Text style={styles.earningsAmount}>
+                ${fareInfo.driverEarnings.toLocaleString('es-CO')} COP
+              </Text>
+            </View>
+            <View style={styles.fareTag}>
+              <Text style={styles.fareTagText}>
+                Tarifa: ${fareInfo.fare.toLocaleString('es-CO')}
+              </Text>
+            </View>
+          </View>
+
+          {/* Detalles del Recorrido */}
+          <View style={styles.routeContainer}>
+            {/* Origen */}
+            <View style={styles.routeRow}>
+              <Ionicons name="radio-button-on" size={18} color="#22C55E" />
+              <View style={styles.routeTextContainer}>
+                <Text style={styles.routeLabel}>Punto de Recogida</Text>
+                <Text style={styles.routeAddress} numberOfLines={1}>
+                  {requestData.originAddress || 'Calle 10 # 43A - 12, El Poblado'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.routeLine} />
+
+            {/* Destino */}
+            <View style={styles.routeRow}>
+              <Ionicons name="location" size={18} color="#EF4444" />
+              <View style={styles.routeTextContainer}>
+                <Text style={styles.routeLabel}>Destino</Text>
+                <Text style={styles.routeAddress} numberOfLines={1}>
+                  {requestData.destinationAddress || 'CC Santafé, Medellín'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Datos Meta (Distancia, Tiempo, Categoría, Pago) */}
+          <View style={styles.metaGrid}>
+            <View style={styles.metaItem}>
+              <Ionicons name="navigate-outline" size={16} color="#64748B" />
+              <Text style={styles.metaText}>{requestData.distanceKm} km</Text>
+            </View>
+
+            <View style={styles.metaItem}>
+              <Ionicons name="stopwatch-outline" size={16} color="#64748B" />
+              <Text style={styles.metaText}>{requestData.durationMin} min</Text>
+            </View>
+
+            <View style={styles.metaItem}>
+              <Ionicons name="car-outline" size={16} color="#64748B" />
+              <Text style={styles.metaText}>
+                {requestData.category?.toUpperCase() || 'ECONÓMICO'}
+              </Text>
+            </View>
+
+            <View style={styles.metaItem}>
+              <Ionicons name="card-outline" size={16} color="#64748B" />
+              <Text style={styles.metaText}>
+                {requestData.paymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Botones de Acción */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.rejectButton}
+              onPress={() => onReject('manual')}
+            >
+              <Text style={styles.rejectText}>Rechazar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.acceptButton}
+              onPress={() => onAccept(requestData, fareInfo)}
+            >
+              <Text style={styles.acceptText}>Aceptar Viaje</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(11, 37, 69, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  timerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF3FF',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 4,
+  },
+  timerText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0056D2',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0A2540',
+  },
+  earningsBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+  },
+  earningsLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  earningsAmount: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#16A34A',
+    marginTop: 2,
+  },
+  fareTag: {
+    backgroundColor: '#DCFCE7',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  fareTagText: {
+    fontSize: 11,
+    color: '#15803D',
+    fontWeight: 'bold',
+  },
+  routeContainer: {
+    marginBottom: 16,
+    paddingLeft: 4,
+  },
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  routeTextContainer: {
+    flex: 1,
+  },
+  routeLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  routeAddress: {
+    fontSize: 14,
+    color: '#0A2540',
+    fontWeight: '600',
+  },
+  routeLine: {
+    width: 2,
+    height: 18,
+    backgroundColor: '#CBD5E1',
+    marginLeft: 8,
+    marginVertical: 2,
+  },
+  metaGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 20,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  rejectText: {
+    color: '#64748B',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  acceptButton: {
+    flex: 2,
+    backgroundColor: '#0056D2',
+    paddingVertical: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+    elevation: 4,
+  },
+  acceptText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+});
+
+export default IncomingRequestModal;
+</file>
+
+<file path="src/hooks/useDriverLocation.js">
+// AI-assisted: see docs/AI_LOG.md #12
+import { useState, useEffect } from 'react';
+import * as Location from 'expo-location';
+import { Alert } from 'react-native';
+
+export const useDriverLocation = (isAvailable, driverStatus) => {
+  const [location, setLocation] = useState({
+    latitude: 6.2442,
+    longitude: -75.5812,
+    latitudeDelta: 0.015,
+    longitudeDelta: 0.015,
+  });
+  const [hasPermission, setHasPermission] = useState(false);
+
+  // Solicitar permisos de ubicación
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se requiere acceso a la ubicación para operar como conductor.');
+        setHasPermission(false);
+        return;
+      }
+      setHasPermission(true);
+
+      let currentLoc = await Location.getCurrentPositionAsync({});
+      setLocation(prev => ({
+        ...prev,
+        latitude: currentLoc.coords.latitude,
+        longitude: currentLoc.coords.longitude,
+      }));
+    })();
+  }, []);
+
+  // Seguimiento en tiempo real con limpieza limpia de useEffect
+  useEffect(() => {
+    let subscription = null;
+
+    if (isAvailable && driverStatus === 'Aprobado' && hasPermission) {
+      console.log('useDriverLocation: Enviando ubicación en tiempo real...');
+      (async () => {
+        subscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000,
+            distanceInterval: 10,
+          },
+          (newLocation) => {
+            const { latitude, longitude } = newLocation.coords;
+            setLocation(prev => ({ ...prev, latitude, longitude }));
+            // Aquí se enviará la coordenada a la base de datos (Firestore / REST API)
+          }
+        );
+      })();
+    }
+
+    return () => {
+      if (subscription) {
+        console.log('useDriverLocation: Deteniendo seguimiento de ubicación (Limpieza useEffect)...');
+        subscription.remove();
+      }
+    };
+  }, [isAvailable, driverStatus, hasPermission]);
+
+  return { location, hasPermission };
+};
+</file>
+
+<file path="src/screens/DocumentsTab.js">
+// AI-assisted: see docs/AI_LOG.md #9
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { Ionicons } from '@expo/vector-icons';
+
+const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) => {
+  const [activeDatePicker, setActiveDatePicker] = useState(null);
+
+  const currentYear = new Date().getFullYear();
+  const vYear = parseInt(vehicleYear) || currentYear;
+  const isTechnoExempt = (currentYear - vYear) <= 5;
+
+  const handleChange = (field, value) => {
+    setDocsData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDateSelect = (event, selectedDate) => {
+    const fieldKey = activeDatePicker;
+    setActiveDatePicker(Platform.OS === 'ios' ? fieldKey : null);
+
+    if (selectedDate && fieldKey) {
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      if (fieldKey === 'license') handleChange('licenseExpiry', formattedDate);
+      if (fieldKey === 'soat') handleChange('soatExpiry', formattedDate);
+      if (fieldKey === 'techno') handleChange('technoExpiry', formattedDate);
+    }
+  };
+
+  const handlePhotoUpload = (field, title) => {
+    const currentVal = docsData[field];
+
+    const pickGallery = async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') return Alert.alert('Permiso denegado', 'Se necesita acceso a la galería.');
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.7 });
+      if (!result.canceled && result.assets?.[0]?.uri) handleChange(field, result.assets[0].uri);
+    };
+
+    const takeCamera = async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') return Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara.');
+      const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
+      if (!result.canceled && result.assets?.[0]?.uri) handleChange(field, result.assets[0].uri);
+    };
+
+    const options = [
+      { text: 'Tomar foto (Cámara)', onPress: takeCamera },
+      { text: 'Elegir de Galería', onPress: pickGallery },
+    ];
+
+    if (currentVal) {
+      options.push({ text: 'Eliminar archivo', onPress: () => handleChange(field, null) });
+    }
+
+    options.push({ text: 'Cancelar', onPress: () => {} });
+
+    Alert.alert(title, 'Selecciona una opción:', options,
+        { cancelable: true }
+    );
+    
+  };
+
+  const handleDocOrPdfUpload = (field, title) => {
+    const currentVal = docsData[field];
+
+    const pickPDF = async () => {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        handleChange(field, { uri: result.assets[0].uri, name: result.assets[0].name || 'Documento.pdf', isPdf: true });
+      }
+    };
+
+    const pickImage = async () => {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.7 });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        handleChange(field, { uri: result.assets[0].uri, isPdf: false });
+      }
+    };
+
+    const takeCamera = async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') return Alert.alert('Permiso denegado', 'Se necesita cámara.');
+      const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        handleChange(field, { uri: result.assets[0].uri, isPdf: false });
+      }
+    };
+
+    const options = [
+      { text: 'Tomar foto (Cámara)', onPress: takeCamera },
+      { text: 'Elegir Imagen (Galería)', onPress: pickImage },
+      { text: 'Cargar documento (PDF)', onPress: pickPDF },
+    ];
+
+    if (currentVal) {
+      options.push({ text: 'Eliminar documento', onPress: () => handleChange(field, null) });
+    }
+
+    options.push({ text: 'Cancelar', onPress: () => {} });
+
+    Alert.alert(title, 'Selecciona el formato a cargar:', options,
+        { cancelable: true }
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="document-text" size={24} color="#0056D2" />
+          </View>
+          <Text style={styles.title}>Documentos y Pago</Text>
+        </View>
+
+        {/* 1. Licencia */}
+        <Text style={styles.sectionHeader}>1. Licencia de Conducción</Text>
+        
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="key-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Número de Licencia</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.licenseNumber && styles.inputError]}
+            placeholder="Ej. 1063189230"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="numeric"
+            value={docsData.licenseNumber}
+            onChangeText={(val) => handleChange('licenseNumber', val)}
+          />
+          {touched.hasSubmitted && errors.licenseNumber && <Text style={styles.errorText}>{errors.licenseNumber}</Text>}
+        </View>
+
+        <View style={styles.dualRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.subLabel}>Lado Frontal</Text>
+            <TouchableOpacity onPress={() => handlePhotoUpload('licenseFront', 'Licencia (Frontal)')} style={styles.docBoxSmall}>
+              {docsData.licenseFront ? (
+                <Image source={{ uri: docsData.licenseFront }} style={styles.docPreview} />
+              ) : (
+                <Ionicons name="camera-outline" size={26} color="#0056D2" />
+              )}
+            </TouchableOpacity>
+            {touched.hasSubmitted && errors.licenseFront && <Text style={styles.errorText}>{errors.licenseFront}</Text>}
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.subLabel}>Lado Posterior</Text>
+            <TouchableOpacity onPress={() => handlePhotoUpload('licenseBack', 'Licencia (Posterior)')} style={styles.docBoxSmall}>
+              {docsData.licenseBack ? (
+                <Image source={{ uri: docsData.licenseBack }} style={styles.docPreview} />
+              ) : (
+                <Ionicons name="camera-outline" size={26} color="#0056D2" />
+              )}
+            </TouchableOpacity>
+            {touched.hasSubmitted && errors.licenseBack && <Text style={styles.errorText}>{errors.licenseBack}</Text>}
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="calendar-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Vencimiento de Licencia</Text>
+          </View>
+          <TouchableOpacity onPress={() => setActiveDatePicker('license')} style={[styles.input, styles.dateButton, touched.hasSubmitted && errors.licenseExpiry && styles.inputError]}>
+            <Text style={{ color: docsData.licenseExpiry ? '#0A2540' : '#A0A0A0' }}>
+              {docsData.licenseExpiry || 'Seleccionar fecha posterior a hoy...'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#A0A0A0" />
+          </TouchableOpacity>
+          {touched.hasSubmitted && errors.licenseExpiry && <Text style={styles.errorText}>{errors.licenseExpiry}</Text>}
+        </View>
+
+        {/* 2. SOAT */}
+        <Text style={styles.sectionHeader}>2. Documento SOAT</Text>
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="shield-checkmark-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Carga de SOAT (Foto o PDF)</Text>
+          </View>
+          <TouchableOpacity onPress={() => handleDocOrPdfUpload('soatFile', 'Documento SOAT')} style={styles.docBoxLarge}>
+            {docsData.soatFile ? (
+              docsData.soatFile.isPdf ? (
+                <View style={styles.pdfBadge}>
+                  <Ionicons name="document-text" size={32} color="#D32F2F" />
+                  <Text style={styles.pdfText}>{docsData.soatFile.name}</Text>
+                </View>
+              ) : (
+                <Image source={{ uri: docsData.soatFile.uri }} style={styles.docPreview} />
+              )
+            ) : (
+              <View style={styles.uploadPlaceholder}>
+                <Ionicons name="cloud-upload-outline" size={32} color="#0056D2" />
+                <Text style={styles.uploadText}>Cargar Foto o PDF del SOAT</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {touched.hasSubmitted && errors.soatFile && <Text style={styles.errorText}>{errors.soatFile}</Text>}
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="calendar-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Vencimiento del SOAT</Text>
+          </View>
+          <TouchableOpacity onPress={() => setActiveDatePicker('soat')} style={[styles.input, styles.dateButton, touched.hasSubmitted && errors.soatExpiry && styles.inputError]}>
+            <Text style={{ color: docsData.soatExpiry ? '#0A2540' : '#A0A0A0' }}>
+              {docsData.soatExpiry || 'Seleccionar fecha posterior a hoy...'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#A0A0A0" />
+          </TouchableOpacity>
+          {touched.hasSubmitted && errors.soatExpiry && <Text style={styles.errorText}>{errors.soatExpiry}</Text>}
+        </View>
+
+        {/* 3. Técnico-Mecánica */}
+        <Text style={styles.sectionHeader}>3. Revisión Técnico-Mecánica</Text>
+        {isTechnoExempt ? (
+          <View style={styles.exemptBadge}>
+            <Ionicons name="checkmark-circle-outline" size={22} color="#2E7D32" />
+            <Text style={styles.exemptText}>
+              Vehículo exento de revisión técnico-mecánica por ser modelo reciente ({vehicleYear || currentYear}).
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Ionicons name="construct-outline" size={18} color="#0056D2" />
+                <Text style={styles.label}>Certificado Técnico-Mecánico (Foto o PDF)</Text>
+              </View>
+              <TouchableOpacity onPress={() => handleDocOrPdfUpload('technoFile', 'Revisión Técnico-Mecánica')} style={styles.docBoxLarge}>
+                {docsData.technoFile ? (
+                  docsData.technoFile.isPdf ? (
+                    <View style={styles.pdfBadge}>
+                      <Ionicons name="document-text" size={32} color="#D32F2F" />
+                      <Text style={styles.pdfText}>{docsData.technoFile.name}</Text>
+                    </View>
+                  ) : (
+                    <Image source={{ uri: docsData.technoFile.uri }} style={styles.docPreview} />
+                  )
+                ) : (
+                  <View style={styles.uploadPlaceholder}>
+                    <Ionicons name="cloud-upload-outline" size={32} color="#0056D2" />
+                    <Text style={styles.uploadText}>Cargar Foto o PDF técnico-mecánico</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {touched.hasSubmitted && errors.technoFile && <Text style={styles.errorText}>{errors.technoFile}</Text>}
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Ionicons name="calendar-outline" size={18} color="#0056D2" />
+                <Text style={styles.label}>Vencimiento de Técnico-Mecánica</Text>
+              </View>
+              <TouchableOpacity onPress={() => setActiveDatePicker('techno')} style={[styles.input, styles.dateButton, touched.hasSubmitted && errors.technoExpiry && styles.inputError]}>
+                <Text style={{ color: docsData.technoExpiry ? '#0A2540' : '#A0A0A0' }}>
+                  {docsData.technoExpiry || 'Seleccionar fecha posterior a hoy...'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#A0A0A0" />
+              </TouchableOpacity>
+              {touched.hasSubmitted && errors.technoExpiry && <Text style={styles.errorText}>{errors.technoExpiry}</Text>}
+            </View>
+          </>
+        )}
+
+        {/* 4. Mercado Pago y Términos */}
+        <Text style={styles.sectionHeader}>4. Cuenta de Cobro y Términos</Text>
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="card-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Correo de Mercado Pago</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.mpEmail && styles.inputError]}
+            placeholder="mercadopago@ejemplo.com"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={docsData.mpEmail}
+            onChangeText={(val) => handleChange('mpEmail', val)}
+          />
+          {touched.hasSubmitted && errors.mpEmail && <Text style={styles.errorText}>{errors.mpEmail}</Text>}
+        </View>
+
+        <View style={styles.commissionBox}>
+          <Ionicons name="information-circle-outline" size={20} color="#0056D2" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.commissionTitle}>Comisión de la Plataforma</Text>
+            <Text style={styles.commissionText}>
+              Se aplicará una tarifa del <Text style={{ fontWeight: 'bold' }}>15%</Text> por cada servicio realizado. La liquidación se efectuará a través de Mercado Pago.
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.termsRow} 
+          onPress={() => handleChange('acceptedTerms', !docsData.acceptedTerms)}
+        >
+          <Ionicons name={docsData.acceptedTerms ? "checkbox" : "square-outline"} size={24} color={docsData.acceptedTerms ? "#0056D2" : "#A0A0A0"} />
+          <Text style={styles.termsText}>
+            Acepto los <Text style={styles.linkText}>Términos y Condiciones</Text> del servicio de conductor.
+          </Text>
+        </TouchableOpacity>
+        {touched.hasSubmitted && errors.acceptedTerms && <Text style={styles.errorText}>{errors.acceptedTerms}</Text>}
+      </View>
+
+      {activeDatePicker && (
+        <DateTimePicker
+          value={new Date()}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={handleDateSelect}
+        />
+      )}
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 25,
+    borderWidth: 1,
+    borderColor: '#EBF2FB',
+    elevation: 3,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12
+  },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EBF3FF',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0A2540'
+  },
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0056D2',
+    marginTop: 14,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingBottom: 4
+  },
+  fieldGroup: {
+    marginBottom: 14
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0A2540'
+  },
+  subLabel: {
+    fontSize: 12,
+    color: '#4A5568',
+    marginBottom: 4,
+    fontWeight: '600'
+  },
+  dualRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14
+  },
+  docBoxSmall: {
+    height: 90,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden'
+  },
+  docBoxLarge: {
+    height: 110,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden'
+  },
+  docPreview: {
+    width: '100%',
+    height: '100%'
+  },
+  uploadPlaceholder: {
+    alignItems: 'center'
+  },
+  uploadText: {
+    color: '#0056D2',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4
+  },
+  pdfBadge: {
+    alignItems: 'center',
+    padding: 8
+  },
+  pdfText: {
+    fontSize: 11,
+    color: '#2D3748',
+    marginTop: 2,
+    textAlign: 'center'
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    backgroundColor: '#F8FAFC',
+    color: '#0A2540'
+  },
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  inputError: {
+    borderColor: '#E53E3E',
+    backgroundColor: '#FFF5F5'
+  },
+  errorText: {
+    color: '#E53E3E',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600'
+  },
+  exemptBadge: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 14
+  },
+  exemptText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1B5E20',
+    fontWeight: '500'
+  },
+  commissionBox: {
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: '#EBF3FF',
+    padding: 14,
+    borderRadius: 14,
+    marginVertical: 10,
+    alignItems: 'flex-start'
+  },
+  commissionTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#0056D2',
+    marginBottom: 2
+  },
+  commissionText: {
+    fontSize: 12,
+    color: '#2D3748',
+    lineHeight: 16
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2D3748'
+  },
+  linkText: {
+    color: '#0056D2',
+    fontWeight: 'bold'
+  }
+});
+
+export default DocumentsTab;
+</file>
+
+<file path="src/screens/LoginScreen.js">
+// AI-assisted: see docs/AI_LOG.md #14
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+  Alert
+} from 'react-native';
+
+const LoginScreen = ({ onGoToRegister }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(false);
+
+  const handleSubmit = () => {
+    if (!email || !password) {
+      Alert.alert('Campos requeridos', 'Por favor ingresa tu correo y contraseña.');
+      return;
+    }
+
+    if (isLoginMode) {
+      // Modo Iniciar Sesión: solo valida campos y muestra mensaje, no redirige a ningún screen
+      Alert.alert('Iniciar sesión', 'Funcionalidad de inicio de sesión en construcción.');
+    } else {
+      // Modo Crear Cuenta: envía a la pantalla de registro de 3 pestañas
+      if (onGoToRegister) onGoToRegister({ email, password });
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      <View style={styles.content}>
+        {/* Título Principal */}
+        <Text style={styles.title}>UberClone Conductor</Text>
+
+        {/* Campo Correo */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Correo</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="ejemplo@correo.com"
+            placeholderTextColor="#A0A0A0"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
+
+        {/* Campo Contraseña */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Contraseña</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="••••••••"
+            placeholderTextColor="#A0A0A0"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+        </View>
+
+        {/* Botón Principal Azul */}
+        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
+          <Text style={styles.primaryButtonText}>
+            {isLoginMode ? 'Iniciar sesión' : 'Crear cuenta'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Enlace de Alternar Modo */}
+        <TouchableOpacity
+          style={styles.switchModeButton}
+          onPress={() => setIsLoginMode(!isLoginMode)}
+        >
+          <Text style={styles.switchModeText}>
+            {isLoginMode ? 'No tengo cuenta' : 'Ya tengo cuenta'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#0A2540',
+    marginBottom: 32,
+  },
+  fieldGroup: {
+    marginBottom: 18,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0A2540',
+    marginBottom: 8,
+  },
+  input: {
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#F8FAFC',
+    color: '#0A2540',
+  },
+  primaryButton: {
+    height: 54,
+    backgroundColor: '#0056D2',
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  switchModeButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  switchModeText: {
+    fontSize: 15,
+    color: '#0056D2',
+    fontWeight: '600',
+  },
+});
+
+export default LoginScreen;
+</file>
+
+<file path="src/service/firebase.js">
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBmFscp32iwlMZ-6wY4f-bssye5rw63Hd8",
+  authDomain: "uberclone-11943.firebaseapp.com",
+  projectId: "uberclone-11943",
+  storageBucket: "uberclone-11943.firebasestorage.app",
+  messagingSenderId: "879857380599",
+  appId: "1:879857380599:web:5d4d8035489357831337f2",
+  measurementId: "G-XPXLWP986L"
+};
+
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+</file>
+
+<file path="src/utils/calculateFare.js">
+// AI-assisted: see docs/AI_LOG.md #3
+import PRICING_CONFIG from '../config/pricing';
+
+export const calculateFare = ({ distanceKm, durationMin, category = 'economy', tip = 0 }) => {
+  const multiplier = PRICING_CONFIG.CATEGORY_MULTIPLIERS[category] || 1.0;
+  
+  const rawCalculated = PRICING_CONFIG.BASE_FARE + 
+    (distanceKm * PRICING_CONFIG.PRICE_PER_KM) + 
+    (durationMin * PRICING_CONFIG.PRICE_PER_MINUTE);
+
+  const rawFareWithCategory = rawCalculated * multiplier;
+
+  const rawFare = Math.max(PRICING_CONFIG.MINIMUM_FARE, rawFareWithCategory);
+
+  const fare = Math.round(rawFare / 100) * 100;
+
+  const commission = fare * PRICING_CONFIG.PLATFORM_COMMISSION_RATE;
+
+  const driverEarnings = fare - commission + tip;
+
+  return {
+    fare,
+    commission,
+    driverEarnings,
+    commissionRate: PRICING_CONFIG.PLATFORM_COMMISSION_RATE
+  };
+};
+</file>
+
+<file path=".env.example">
+# Puerto Backend
+PORT=3000
+
+# Credenciales de Mercado Pago (Modo Prueba)
+MP_PUBLIC_KEY=TEST-00000000-0000-0000-0000-000000000000
+MP_ACCESS_TOKEN=TEST-00000000-0000-0000-0000-000000000000
+
+# Google Maps API Key
+GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+# URL Base de la API
+API_BASE_URL=http://localhost:3000/api
+</file>
+
+<file path=".gitignore">
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+</file>
+
+<file path="AGENTS.md">
+This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+
+## Expo has changed — do not trust your training data
+
+Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
+
+1. Read the major version of the `expo` package in `package.json`.
+2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
+3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
+
+## Commands
+
+Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
+
+```bash
+npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
+npx expo start              # start the dev server
+npx expo lint               # lint
+npx tsc --noEmit            # typecheck
+npx expo-doctor             # diagnose dependency and config issues
+npx expo install --fix      # fix incompatible package versions
+```
+
+Run lint and typecheck before declaring any task done.
+
+## Navigation & Routing
+
+- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
+- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
+- Docs: https://docs.expo.dev/router/introduction.md
+
+## Building with EAS
+
+Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
+Docs: https://docs.expo.dev/eas/index.md
+
+## Rules
+
+- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
+- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
+- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+</file>
+
+<file path="index.js">
+import { registerRootComponent } from 'expo';
+
+import App from './App';
+
+// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
+// It also ensures that whether you load the app in Expo Go or in a native build,
+// the environment is set up appropriately
+registerRootComponent(App);
+</file>
+
+<file path="LICENSE">
+The MIT License (MIT)
+
+Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="src/config/pricing.js">
+// AI-assisted: see docs/AI_LOG.md #2
+const PRICING_CONFIG = {
+  BASE_FARE: 3500,
+  PRICE_PER_KM: 1200,
+  PRICE_PER_MINUTE: 250,
+  MINIMUM_FARE: 6000,
+  PLATFORM_COMMISSION_RATE: 0.20,
+  CATEGORY_MULTIPLIERS: {
+    economy: 1.0,
+    xl: 1.4,
+    premium: 1.8
+  }
+};
+
+export default PRICING_CONFIG;
+</file>
+
+<file path="src/screens/HomeScreen.js">
+// AI-assisted: see docs/AI_LOG.md #10
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Switch,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+  Alert
+} from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
+import { useDriverLocation } from '../hooks/useDriverLocation';
+import IncomingRequestModal from '../components/IncomingRequestModal';
+
+const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
+  const [isAvailable, setIsAvailable] = useState(false);
+  const { location } = useDriverLocation(isAvailable, driverStatus);
+  
+  const [incomingRequest, setIncomingRequest] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  // Simulación: Generar viaje entrante a los 4 segundos de estar Disponible
+  useEffect(() => {
+    let timeout = null;
+    if (isAvailable && driverStatus === 'Aprobado' && !incomingRequest) {
+      timeout = setTimeout(() => {
+        const mockTrip = {
+          id: 'TRIP_101',
+          originAddress: 'Parque Lleras, Poblado',
+          destinationAddress: 'Centro Comercial Santafé',
+          distanceKm: 6.5,
+          durationMin: 18,
+          category: 'economy',
+          paymentMethod: 'mercadopago',
+          tip: 2000
+        };
+        setIncomingRequest(mockTrip);
+        setShowModal(true);
+      }, 4000);
+    }
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [isAvailable, driverStatus, incomingRequest]);
+
+  const handleToggleAvailability = (value) => {
+    if (driverStatus === 'Pendiente') {
+      Alert.alert(
+        'Cuenta en Revisión',
+        'Tu solicitud de registro se encuentra Pendiente de aprobación. No puedes ponerte Disponible hasta que tus documentos sean verificados.'
+      );
+      setIsAvailable(false);
+      return;
+    }
+
+    setIsAvailable(value);
+    if (!value) {
+      setIncomingRequest(null);
+      setShowModal(false);
+    }
+  };
+
+  const handleAcceptTrip = (requestData, fareInfo) => {
+    setShowModal(false);
+    Alert.alert(
+      '¡Viaje Aceptado!',
+      `Navegando al origen.\nGanancia Neta: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`
+    );
+  };
+
+  const handleRejectTrip = (reason) => {
+    setShowModal(false);
+    setIncomingRequest(null);
+    if (reason === 'timeout') {
+      Alert.alert('Tiempo agotado', 'La solicitud ha sido rechazada automáticamente por el sistema.');
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+      {/* Mapa de Fondo */}
+      <MapView
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        region={location}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+      >
+        {isAvailable && (
+          <Marker
+            coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+            title="Tu Vehículo"
+            description="Estás disponible para recibir carreras"
+          >
+            <View style={styles.driverMarker}>
+              <Ionicons name="car" size={22} color="#FFFFFF" />
+            </View>
+          </Marker>
+        )}
+      </MapView>
+
+      {/* Bar de Encabezado Flotante */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity style={styles.menuButton} onPress={onOpenProfile}>
+          <Ionicons name="menu-outline" size={26} color="#0A2540" />
+        </TouchableOpacity>
+
+        <View style={styles.headerStatusBadge}>
+          <View style={[styles.statusDot, { backgroundColor: isAvailable ? '#22C55E' : '#EF4444' }]} />
+          <Text style={styles.headerStatusText}>
+            {isAvailable ? 'Disponible' : 'No disponible'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Tarjeta Inferior de Control de Disponibilidad */}
+      <View style={styles.bottomCard}>
+        <View style={styles.switchRow}>
+          <View style={styles.switchInfo}>
+            <Text style={styles.switchTitle}>
+              {isAvailable ? 'Disponible' : 'No disponible'}
+            </Text>
+            <Text style={styles.switchSubtitle}>
+              {isAvailable
+                ? 'Buscando solicitudes de viaje cercanas...'
+                : 'Ponte disponible para empezar a recibir viajes.'}
+            </Text>
+          </View>
+
+          <Switch
+            trackColor={{ false: '#CBD5E1', true: '#93C5FD' }}
+            thumbColor={isAvailable ? '#0056D2' : '#64748B'}
+            ios_backgroundColor="#CBD5E1"
+            onValueChange={handleToggleAvailability}
+            value={isAvailable}
+          />
+        </View>
+      </View>
+
+      {/* Modal de Solicitud Entrante */}
+      <IncomingRequestModal
+        visible={showModal}
+        requestData={incomingRequest}
+        onAccept={handleAcceptTrip}
+        onReject={handleRejectTrip}
+      />
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  driverMarker: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0056D2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  topHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 16,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  headerStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  headerStatusText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#0A2540',
+  },
+  bottomCard: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  switchInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  switchTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0A2540',
+  },
+  switchSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+  },
+});
+
+export default HomeScreen;
+</file>
+
+<file path="app.json">
+{
+  "expo": {
+    "name": "uber-clone",
+    "slug": "uber-clone",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
+  }
+}
+</file>
+
+<file path="src/utils/validators.js">
+// AI-assisted: see docs/AI_LOG.md #3
+export const validatePersonalData = (data) => {
+  const errors = {};
+
+  if (!data.fullName || data.fullName.trim().length < 3) {
+    errors.fullName = 'El nombre completo debe tener al menos 3 caracteres.';
+  }
+
+  if (!data.idNumber || !/^\d{6,10}$/.test(data.idNumber)) {
+    errors.idNumber = 'El documento debe contener entre 6 y 10 dígitos numéricos.';
+  }
+
+  if (!data.phone || !/^\d{10}$/.test(data.phone)) {
+    errors.phone = 'El número de celular debe tener exactamente 10 dígitos.';
+  }
+
+  if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    errors.email = 'Ingrese un correo electrónico válido.';
+  }
+
+  if (!data.birthDate) {
+    errors.birthDate = 'La fecha de nacimiento es obligatoria.';
+  } else {
+    const birth = new Date(data.birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      errors.birthDate = 'Debe ser mayor de 18 años para registrarse como conductor.';
+    }
+  }
+
+  if (!data.gender) {
+    errors.gender = 'Debe seleccionar un género.';
+  }
+
+  if (!data.profilePhoto) {
+    errors.profilePhoto = 'La foto de perfil es obligatoria.';
+  }
+
+  return errors;
+};
+
+export const validateVehicleData = (data) => {
+  const errors = {};
+
+  if (!data.category) {
+    errors.category = 'Debe seleccionar una categoría.';
+  }
+
+  if (!data.plate || !/^[A-Z]{3}\d{3}$/.test(data.plate)) {
+    errors.plate = 'La placa debe tener formato colombiano (3 letras y 3 números). Ej: ABC123';
+  }
+
+  if (!data.brand || data.brand.trim().length < 2) {
+    errors.brand = 'La marca del vehículo es obligatoria.';
+  }
+
+  if (!data.model || data.model.trim().length < 1) {
+    errors.model = 'El modelo del vehículo es obligatorio.';
+  }
+
+  if (!data.year || !/^\d{4}$/.test(data.year)) {
+    errors.year = 'Ingrese un año válido (4 dígitos). Ej: 2022';
+  }
+
+  if (!data.capacity || isNaN(data.capacity) || parseInt(data.capacity) < 1) {
+    errors.capacity = 'La capacidad de pasajeros es obligatoria.';
+  }
+
+  if (!data.color) {
+    errors.color = 'Debe seleccionar un color.';
+  }
+
+  if (!data.vehiclePhoto) {
+    errors.vehiclePhoto = 'La foto del vehículo es obligatoria.';
+  }
+
+  return errors;
+};
+
+export const validateDocumentsData = (data, vehicleYear) => {
+  const errors = {};
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  if (!data.licenseFront) errors.licenseFront = 'La foto frontal de la licencia es obligatoria.';
+  if (!data.licenseBack) errors.licenseBack = 'La foto posterior de la licencia es obligatoria.';
+  if (!data.licenseNumber || data.licenseNumber.trim().length < 5) {
+    errors.licenseNumber = 'Ingrese un número de licencia válido.';
+  }
+  if (!data.licenseExpiry) {
+    errors.licenseExpiry = 'La fecha de vencimiento de la licencia es obligatoria.';
+  } else if (data.licenseExpiry <= todayStr) {
+    errors.licenseExpiry = 'La licencia se encuentra vencida. Ingrese una fecha posterior a hoy.';
+  }
+
+  if (!data.soatFile) errors.soatFile = 'El documento o foto del SOAT es obligatorio.';
+  if (!data.soatExpiry) {
+    errors.soatExpiry = 'La fecha de vencimiento del SOAT es obligatoria.';
+  } else if (data.soatExpiry <= todayStr) {
+    errors.soatExpiry = 'El SOAT se encuentra vencido. Ingrese una fecha posterior a hoy.';
+  }
+
+  const currentYear = new Date().getFullYear();
+  const vYear = parseInt(vehicleYear) || currentYear;
+  const isExempt = (currentYear - vYear) <= 5;
+
+  if (!isExempt) {
+    if (!data.technoFile) errors.technoFile = 'La revisión técnico-mecánica es obligatoria para vehículos con más de 5 años.';
+    if (!data.technoExpiry) {
+      errors.technoExpiry = 'La fecha de vencimiento de la técnico-mecánica es obligatoria.';
+    } else if (data.technoExpiry <= todayStr) {
+      errors.technoExpiry = 'La técnico-mecánica se encuentra vencida. Ingrese una fecha posterior a hoy.';
+    }
+  }
+
+  if (!data.mpEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.mpEmail)) {
+    errors.mpEmail = 'Ingrese un correo de Mercado Pago válido.';
+  }
+
+  if (!data.acceptedTerms) {
+    errors.acceptedTerms = 'Debe aceptar los Términos y Condiciones.';
+  }
+
+  return errors;
+};
+</file>
+
+<file path="App.js">
+// AI-assisted: see docs/AI_LOG.md #7
+import React, { useState } from 'react';
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+
+export default function App() {
+  const [screen, setScreen] = useState('login'); // 'login' o 'register'
+
+  if (screen === 'register') {
+    return <RegisterScreen />;
+  }
+
+  return (
+    <LoginScreen
+      onGoToRegister={() => setScreen('register')}
+    />
+  );
+}
+</file>
+
+<file path="src/screens/PersonalDataTab.js">
+// AI-assisted: see docs/AI_LOG.md #4
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+
+const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      handleChange('birthDate', formattedDate);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('profilePhoto', result.assets[0].uri);
+    }
+  };
+
+  const takeWithCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      cameraType: ImagePicker.CameraType.front,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('profilePhoto', result.assets[0].uri);
+    }
+  };
+
+  const handlePhotoOptions = () => {
+      const options = [
+        { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
+        { text: 'Elegir de Galería', onPress: pickFromGallery }
+      ];
+  
+      if (formData.profilePhoto) {
+        options.push({
+          text: 'Eliminar foto',
+          onPress: () => handleChange('profilePhoto', null)
+        });
+      }
+  
+      Alert.alert(
+        'Foto de Perfil',
+        '¿Qué deseas hacer con tu foto de perfil?',
+        options,
+        { cancelable: true } 
+      );
+    };
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="person" size={24} color="#0056D2" />
+          </View>
+          <Text style={styles.title}>Datos Personales</Text>
+        </View>
+
+        {/* Foto de Perfil */}
+        <View style={styles.photoContainer}>
+          <TouchableOpacity onPress={handlePhotoOptions} style={styles.avatarButton}>
+            {formData.profilePhoto ? (
+              <Image source={{ uri: formData.profilePhoto }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="camera-outline" size={32} color="#0056D2" />
+                <Text style={styles.avatarText}>Subir foto</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.photoHint}>Foto de perfil (Toca para cambiar o eliminar)</Text>
+          {touched.hasSubmitted && errors.profilePhoto && (
+            <Text style={styles.errorText}>{errors.profilePhoto}</Text>
+          )}
+        </View>
+
+        {/* Nombre completo */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="person-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Nombre completo</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.fullName && styles.inputError]}
+            placeholder="Ej. Robert De Jesús Julio González"
+            placeholderTextColor="#A0A0A0"
+            value={formData.fullName}
+            onChangeText={(val) => handleChange('fullName', val)}
+            maxLength={50}
+          />
+          {touched.hasSubmitted && errors.fullName ? (
+            <Text style={styles.errorText}>{errors.fullName}</Text>
+          ) : (
+            <Text style={styles.hintText}>Ingrese su nombre completo tal como figura en su documento.</Text>
+          )}
+        </View>
+
+        {/* Documento de identidad */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="id-card-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Documento de identidad</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.idNumber && styles.inputError]}
+            placeholder="Ej. 1063189230"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="numeric"
+            value={formData.idNumber}
+            onChangeText={(val) => handleChange('idNumber', val)}
+            maxLength={10}
+          />
+          {touched.hasSubmitted && errors.idNumber ? (
+            <Text style={styles.errorText}>{errors.idNumber}</Text>
+          ) : (
+            <Text style={styles.hintText}>Debe tener entre 6 y 10 dígitos numéricos sin puntos ni comas.</Text>
+          )}
+        </View>
+
+        {/* Número de celular */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="call-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Número de celular</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.phone && styles.inputError]}
+            placeholder="Ej. 3054551840"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="phone-pad"
+            value={formData.phone}
+            onChangeText={(val) => handleChange('phone', val)}
+            maxLength={10}
+          />
+          {touched.hasSubmitted && errors.phone ? (
+            <Text style={styles.errorText}>{errors.phone}</Text>
+          ) : (
+            <Text style={styles.hintText}>Debe contener exactamente 10 dígitos numéricos.</Text>
+          )}
+        </View>
+
+        {/* Correo electrónico */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="mail-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Correo electrónico</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.email && styles.inputError]}
+            placeholder="correo@ejemplo.com"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={formData.email}
+            onChangeText={(val) => handleChange('email', val)}
+          />
+          {touched.hasSubmitted && errors.email ? (
+            <Text style={styles.errorText}>{errors.email}</Text>
+          ) : (
+            <Text style={styles.hintText}>Formato válido de correo electrónico (ej. nombre@dominio.com).</Text>
+          )}
+        </View>
+
+        {/* Fecha de nacimiento */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="calendar-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Fecha de nacimiento</Text>
+          </View>
+          <TouchableOpacity 
+            onPress={() => setShowDatePicker(true)}
+            style={[styles.input, styles.datePickerButton, touched.hasSubmitted && errors.birthDate && styles.inputError]}
+          >
+            <Text style={{ color: formData.birthDate ? '#0A2540' : '#A0A0A0', fontSize: 15 }}>
+              {formData.birthDate ? formData.birthDate : 'Seleccionar fecha de nacimiento...'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#A0A0A0" />
+          </TouchableOpacity>
+          {touched.hasSubmitted && errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={formData.birthDate ? new Date(formData.birthDate) : new Date(2005, 0, 1)}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+          />
+        )}
+
+        {/* Género */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="transgender-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Género</Text>
+          </View>
+          <View style={[styles.pickerContainer, touched.hasSubmitted && errors.gender && styles.inputError]}>
+            <Picker
+              selectedValue={formData.gender}
+              onValueChange={(itemValue) => handleChange('gender', itemValue)}
+              dropdownIconColor="#0056D2"
+            >
+              <Picker.Item label="Seleccionar género..." value="" color="#A0A0A0" />
+              <Picker.Item label="Masculino" value="Masculino" />
+              <Picker.Item label="Femenino" value="Femenino" />
+              <Picker.Item label="Otro" value="Otro" />
+            </Picker>
+          </View>
+          {touched.hasSubmitted && errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+        </View>
+
+        {/* Idioma */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="globe-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Idioma de la App</Text>
+          </View>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={formData.language}
+              onValueChange={(itemValue) => handleChange('language', itemValue)}
+              dropdownIconColor="#0056D2"
+            >
+              <Picker.Item label="Español" value="Español" />
+              <Picker.Item label="Inglés" value="Inglés" />
+            </Picker>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 25,
+    borderWidth: 1,
+    borderColor: '#EBF2FB',
+    elevation: 3,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12
+  },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EBF3FF',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0A2540'
+  },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  avatarButton: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    overflow: 'hidden',
+    backgroundColor: '#F0F4F8',
+    borderWidth: 2,
+    borderColor: '#0056D2',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%'
+  },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  avatarText: {
+    fontSize: 11,
+    color: '#0056D2',
+    fontWeight: '600',
+    marginTop: 2
+  },
+  photoHint: {
+    fontSize: 12,
+    color: '#4A5568',
+    marginTop: 6
+  },
+  fieldGroup: {
+    marginBottom: 16
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0A2540'
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    backgroundColor: '#F8FAFC',
+    color: '#0A2540'
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  pickerContainer: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+    justifyContent: 'center'
+  },
+  inputError: {
+    borderColor: '#E53E3E',
+    backgroundColor: '#FFF5F5'
+  },
+  errorText: {
+    color: '#E53E3E',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600'
+  },
+  hintText: {
+    color: '#4A5568',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '400'
+  }
+});
+
+export default PersonalDataTab;
+</file>
+
+<file path="src/screens/VehicleTab.js">
+// AI-assisted: see docs/AI_LOG.md #5
+import React from 'react';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+
+const VehicleTab = ({ vehicleData, setVehicleData, errors, touched }) => {
+  const handleChange = (field, value) => {
+    let val = value;
+    if (field === 'plate') {
+      val = value.toUpperCase();
+    }
+    setVehicleData(prev => ({ ...prev, [field]: val }));
+  };
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de galería.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('vehiclePhoto', result.assets[0].uri);
+    }
+  };
+
+  const takeWithCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Se necesitan permisos de cámara.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleChange('vehiclePhoto', result.assets[0].uri);
+    }
+  };
+
+  const handlePhotoOptions = () => {
+    const options = [
+      { text: 'Tomar foto (Cámara)', onPress: takeWithCamera },
+      { text: 'Elegir de Galería', onPress: pickFromGallery }
+    ];
+
+    if (vehicleData.vehiclePhoto) {
+      options.push({
+        text: 'Eliminar foto',
+        onPress: () => handleChange('vehiclePhoto', null)
+      });
+    }
+
+    Alert.alert(
+      'Foto del Vehículo',
+      '¿Qué deseas hacer con la foto del vehículo?',
+      options,
+      { cancelable: true } 
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="car" size={24} color="#0056D2" />
+          </View>
+          <Text style={styles.title}>Datos del Vehículo</Text>
+        </View>
+
+        {/* Foto del Vehículo */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="image-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Foto del vehículo</Text>
+          </View>
+          <TouchableOpacity onPress={handlePhotoOptions} style={styles.vehiclePhotoCard}>
+            {vehicleData.vehiclePhoto ? (
+              <Image source={{ uri: vehicleData.vehiclePhoto }} style={styles.vehiclePhotoPreview} />
+            ) : (
+              <View style={styles.vehiclePhotoPlaceholder}>
+                <Ionicons name="camera-outline" size={36} color="#0056D2" />
+                <Text style={styles.uploadText}>Tomar o elegir foto del carro (Placa visible)</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {touched.hasSubmitted && errors.vehiclePhoto && (
+            <Text style={styles.errorText}>{errors.vehiclePhoto}</Text>
+          )}
+        </View>
+
+        {/* Categoría */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="pricetag-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Categoría del Vehículo</Text>
+          </View>
+          <View style={[styles.pickerContainer, touched.hasSubmitted && errors.category && styles.inputError]}>
+            <Picker
+              selectedValue={vehicleData.category}
+              onValueChange={(itemValue) => handleChange('category', itemValue)}
+              dropdownIconColor="#0056D2"
+            >
+              <Picker.Item label="Seleccionar categoría..." value="" color="#A0A0A0" />
+              <Picker.Item label="Económico" value="economy" />
+              <Picker.Item label="XL" value="xl" />
+              <Picker.Item label="Premium" value="premium" />
+            </Picker>
+          </View>
+          {touched.hasSubmitted && errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
+        </View>
+
+        {/* Placa */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="barcode-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Placa del vehículo</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.plate && styles.inputError]}
+            placeholder="Ej. ABC123"
+            placeholderTextColor="#A0A0A0"
+            value={vehicleData.plate}
+            onChangeText={(val) => handleChange('plate', val)}
+            autoCapitalize="characters"
+            maxLength={6}
+          />
+          {touched.hasSubmitted && errors.plate ? (
+            <Text style={styles.errorText}>{errors.plate}</Text>
+          ) : (
+            <Text style={styles.hintText}>Placa colombiana de 3 letras y 3 números en mayúsculas.</Text>
+          )}
+        </View>
+
+        {/* Marca */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="car-sport-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Marca</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.brand && styles.inputError]}
+            placeholder="Ej. Chevrolet"
+            placeholderTextColor="#A0A0A0"
+            value={vehicleData.brand}
+            onChangeText={(val) => handleChange('brand', val)}
+            maxLength={30}
+          />
+          {touched.hasSubmitted && errors.brand && <Text style={styles.errorText}>{errors.brand}</Text>}
+        </View>
+
+        {/* Modelo */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="settings-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Modelo</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.model && styles.inputError]}
+            placeholder="Ej. Onix"
+            placeholderTextColor="#A0A0A0"
+            value={vehicleData.model}
+            onChangeText={(val) => handleChange('model', val)}
+            maxLength={30}
+          />
+          {touched.hasSubmitted && errors.model && <Text style={styles.errorText}>{errors.model}</Text>}
+        </View>
+
+        {/* Año */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="calendar-number-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Año</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.year && styles.inputError]}
+            placeholder="Ej. 2022"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="numeric"
+            value={vehicleData.year}
+            onChangeText={(val) => handleChange('year', val)}
+            maxLength={4}
+          />
+          {touched.hasSubmitted && errors.year ? (
+            <Text style={styles.errorText}>{errors.year}</Text>
+          ) : (
+            <Text style={styles.hintText}>Año de fabricación de 4 dígitos (Ej. 2022).</Text>
+          )}
+        </View>
+
+        {/* Capacidad */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="people-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Capacidad de pasajeros</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.capacity && styles.inputError]}
+            placeholder="Ej. 4 (Mínimo 6 si es XL)"
+            placeholderTextColor="#A0A0A0"
+            keyboardType="numeric"
+            value={vehicleData.capacity}
+            onChangeText={(val) => handleChange('capacity', val)}
+          />
+          {touched.hasSubmitted && errors.capacity && <Text style={styles.errorText}>{errors.capacity}</Text>}
+        </View>
+
+        {/* Color */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="color-palette-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Color</Text>
+          </View>
+          <View style={[styles.pickerContainer, touched.hasSubmitted && errors.color && styles.inputError]}>
+            <Picker
+              selectedValue={vehicleData.color}
+              onValueChange={(itemValue) => handleChange('color', itemValue)}
+              dropdownIconColor="#0056D2"
+            >
+              <Picker.Item label="Seleccionar color..." value="" color="#A0A0A0" />
+              <Picker.Item label="Blanco" value="Blanco" />
+              <Picker.Item label="Negro" value="Negro" />
+              <Picker.Item label="Gris" value="Gris" />
+              <Picker.Item label="Rojo" value="Rojo" />
+              <Picker.Item label="Azul" value="Azul" />
+              <Picker.Item label="Plata" value="Plata" />
+            </Picker>
+          </View>
+          {touched.hasSubmitted && errors.color && <Text style={styles.errorText}>{errors.color}</Text>}
+        </View>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 25,
+    borderWidth: 1,
+    borderColor: '#EBF2FB',
+    elevation: 3,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12
+  },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EBF3FF',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0A2540'
+  },
+  vehiclePhotoCard: {
+    height: 140,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  vehiclePhotoPreview: {
+    width: '100%',
+    height: '100%'
+  },
+  vehiclePhotoPlaceholder: {
+    alignItems: 'center'
+  },
+  uploadText: {
+    color: '#0056D2',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6
+  },
+  fieldGroup: {
+    marginBottom: 16
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0A2540'
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    backgroundColor: '#F8FAFC',
+    color: '#0A2540'
+  },
+  pickerContainer: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+    justifyContent: 'center'
+  },
+  inputError: {
+    borderColor: '#E53E3E',
+    backgroundColor: '#FFF5F5'
+  },
+  errorText: {
+    color: '#E53E3E',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600'
+  },
+  hintText: {
+    color: '#4A5568',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '400'
+  }
+});
+
+export default VehicleTab;
+</file>
+
+<file path="src/screens/RegisterScreen.js">
+// AI-assisted: see docs/AI_LOG.md #7
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
+import PersonalDataTab from './PersonalDataTab';
+import VehicleTab from './VehicleTab';
+import DocumentsTab from './DocumentsTab';
+import { validatePersonalData, validateVehicleData, validateDocumentsData } from '../utils/validators';
+import { Ionicons } from '@expo/vector-icons';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../service/firebase';
+
+const RegisterScreen = () => {
+  const [activeTab, setActiveTab] = useState(1);
+  const [submittedTab1, setSubmittedTab1] = useState(false);
+  const [submittedTab2, setSubmittedTab2] = useState(false);
+  const [submittedTab3, setSubmittedTab3] = useState(false);
+
+  const [personalData, setPersonalData] = useState({
+    profilePhoto: null,
+    fullName: '',
+    idNumber: '',
+    phone: '',
+    email: '',
+    birthDate: '',
+    gender: '',
+    language: 'Español'
+  });
+
+  const [vehicleData, setVehicleData] = useState({
+    vehiclePhoto: null,
+    category: '',
+    plate: '',
+    brand: '',
+    model: '',
+    year: '',
+    color: '',
+    capacity: ''
+  });
+
+  const [docsData, setDocsData] = useState({
+    licenseFront: null,
+    licenseBack: null,
+    licenseNumber: '',
+    licenseExpiry: '',
+    soatFile: null,
+    soatExpiry: '',
+    technoFile: null,
+    technoExpiry: '',
+    mpEmail: '',
+    acceptedTerms: false
+  });
+
+  const personalErrors = validatePersonalData(personalData);
+  const vehicleErrors = validateVehicleData(vehicleData);
+  const docsErrors = validateDocumentsData(docsData, vehicleData.year);
+
+  const isPersonalValid = Object.keys(personalErrors).length === 0;
+  const isVehicleValid = Object.keys(vehicleErrors).length === 0;
+  const isDocsValid = Object.keys(docsErrors).length === 0;
+
+  const handleTabPress = (tabIndex) => {
+    if (tabIndex === 2 && !isPersonalValid) {
+      setSubmittedTab1(true);
+      return;
+    }
+    if (tabIndex === 3 && (!isPersonalValid || !isVehicleValid)) {
+      if (!isPersonalValid) setSubmittedTab1(true);
+      if (!isVehicleValid) setSubmittedTab2(true);
+      return;
+    }
+    setActiveTab(tabIndex);
+  };
+
+  const handleNextOrSubmit = async () => {
+  if (activeTab === 1) {
+    setSubmittedTab1(true);
+    if (isPersonalValid) {
+      setActiveTab(2);
+    }
+  } else if (activeTab === 2) {
+    setSubmittedTab2(true);
+    if (isVehicleValid) {
+      setActiveTab(3);
+    }
+  } else if (activeTab === 3) {
+    setSubmittedTab3(true);
+    if (isPersonalValid && isVehicleValid && isDocsValid) {
+      try {
+        const newDriver = {
+          ...personalData,
+          vehicle: vehicleData,
+          documents: docsData,
+          status: 'Pendiente',
+          registeredAt: new Date().toISOString()
+        };
+
+        await addDoc(collection(db, 'drivers'), newDriver);
+
+        console.log('Solicitud enviada con éxito. Estado: Pendiente');
+        Alert.alert(
+          '¡Registro Completado!',
+          'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
+          [{ text: 'Aceptar' }]
+        );
+      } catch (error) {
+        console.log('Error al guardar:', error);
+        Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+      }
+    }
+  }
+};
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2545" />
+
+      {/* Header Superior Azul Curvo */}
+      <View style={styles.topBanner}>
+        <View style={styles.tabHeader}>
+          {/* Pestaña 1 */}
+          <TouchableOpacity 
+            style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
+            onPress={() => handleTabPress(1)}
+          >
+            <View style={styles.tabRow}>
+              {isPersonalValid ? (
+                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+              ) : (
+                <View style={[styles.stepNumber, activeTab === 1 && styles.activeStepNumber]}>
+                  <Text style={styles.stepText}>1</Text>
+                </View>
+              )}
+              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>Personales</Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.stepDivider} />
+
+          {/* Pestaña 2 */}
+          <TouchableOpacity 
+            style={[
+              styles.tabButton, 
+              activeTab === 2 && styles.activeTabButton,
+              !isPersonalValid && styles.tabDisabled
+            ]}
+            onPress={() => handleTabPress(2)}
+          >
+            <View style={styles.tabRow}>
+              {isVehicleValid ? (
+                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+              ) : (
+                <View style={[styles.stepNumber, activeTab === 2 && styles.activeStepNumber]}>
+                  <Text style={styles.stepText}>2</Text>
+                </View>
+              )}
+              <Text style={[
+                styles.tabText, 
+                activeTab === 2 && styles.activeTabText,
+                !isPersonalValid && styles.tabDisabledText
+              ]}>
+                Vehículo
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.stepDivider} />
+
+          {/* Pestaña 3 */}
+          <TouchableOpacity 
+            style={[
+              styles.tabButton, 
+              activeTab === 3 && styles.activeTabButton,
+              (!isPersonalValid || !isVehicleValid) && styles.tabDisabled
+            ]}
+            onPress={() => handleTabPress(3)}
+          >
+            <View style={styles.tabRow}>
+              {isDocsValid ? (
+                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+              ) : (
+                <View style={[styles.stepNumber, activeTab === 3 && styles.activeStepNumber]}>
+                  <Text style={styles.stepText}>3</Text>
+                </View>
+              )}
+              <Text style={[
+                styles.tabText, 
+                activeTab === 3 && styles.activeTabText,
+                (!isPersonalValid || !isVehicleValid) && styles.tabDisabledText
+              ]}>
+                Documentos
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Contenido dinámico */}
+      <View style={styles.tabContent}>
+        {activeTab === 1 && (
+          <PersonalDataTab 
+            formData={personalData} 
+            setFormData={setPersonalData} 
+            errors={personalErrors}
+            touched={{ hasSubmitted: submittedTab1 }}
+          />
+        )}
+        {activeTab === 2 && (
+          <VehicleTab 
+            vehicleData={vehicleData} 
+            setVehicleData={setVehicleData} 
+            errors={vehicleErrors}
+            touched={{ hasSubmitted: submittedTab2 }}
+          />
+        )}
+        {activeTab === 3 && (
+          <DocumentsTab 
+            docsData={docsData} 
+            setDocsData={setDocsData} 
+            errors={docsErrors}
+            touched={{ hasSubmitted: submittedTab3 }}
+            vehicleYear={vehicleData.year}
+          />
+        )}
+      </View>
+
+      {/* Footer dinámico */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleNextOrSubmit}
+        >
+          <Text style={styles.actionText}>
+            {activeTab === 3 ? 'Enviar registro' : 'Continuar'}
+          </Text>
+          <Ionicons 
+            name={activeTab === 3 ? "checkmark-done" : "arrow-forward"} 
+            size={18} 
+            color="#FFFFFF" 
+            style={{ marginLeft: 6 }} 
+          />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#EEF4FB'
+  },
+  topBanner: {
+    backgroundColor: '#0B2545',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 16,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingHorizontal: 12,
+    zIndex: 10,
+    elevation: 5
+  },
+  tabHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  tabButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    alignItems: 'center'
+  },
+  activeTabButton: {
+    borderBottomWidth: 3,
+    borderBottomColor: '#0066FF'
+  },
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  stepNumber: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#1E3A8A',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  activeStepNumber: {
+    backgroundColor: '#0066FF'
+  },
+  stepText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold'
+  },
+  stepDivider: {
+    width: 14,
+    height: 2,
+    backgroundColor: '#1E3A8A'
+  },
+  tabText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '600'
+  },
+  activeTabText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold'
+  },
+  tabDisabled: {
+    opacity: 0.5
+  },
+  tabDisabledText: {
+    color: '#64748B'
+  },
+  tabContent: {
+    flex: 1,
+    paddingTop: 12
+  },
+  footer: {
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0'
+  },
+  actionButton: {
+    backgroundColor: '#0056D2',
+    paddingVertical: 16,
+    borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#0056D2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8
+  },
+  actionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold'
+  }
+});
+
+export default RegisterScreen;
+</file>
+
+<file path="package.json">
+{
+  "name": "uber-clone",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-community/datetimepicker": "9.2.1",
+    "@react-native-picker/picker": "2.11.4",
+    "expo": "~58.0.21",
+    "expo-document-picker": "~58.0.4",
+    "expo-image-picker": "~58.0.10",
+    "expo-location": "~58.0.20",
+    "expo-status-bar": "~58.0.4",
+    "firebase": "^13.2.0",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-maps": "1.29.11"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}
+</file>
+
+</files>
