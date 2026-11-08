@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #13
+// AI-assisted: see docs/AI_LOG.md #16
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert,KeyboardAvoidingView} from 'react-native';
 import PersonalDataTab from './PersonalDataTab';
@@ -8,6 +8,8 @@ import { validatePersonalData, validateVehicleData, validateDocumentsData } from
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../service/firebase';
+import { uploadToCloudinary } from '../service/cloudinary';
+import { ActivityIndicator } from 'react-native';
 
 const RegisterScreen = () => {
   const [activeTab, setActiveTab] = useState(1);
@@ -71,6 +73,8 @@ const RegisterScreen = () => {
     setActiveTab(tabIndex);
   };
 
+  const [loading, setLoading] = useState(false);
+
   const handleNextOrSubmit = async () => {
     if (activeTab === 1) {
       setSubmittedTab1(true);
@@ -86,25 +90,55 @@ const RegisterScreen = () => {
       setSubmittedTab3(true);
       if (isPersonalValid && isVehicleValid && isDocsValid) {
         try {
+          setLoading(true);
+
+          // 1. Subir archivos a Cloudinary
+          const profilePhotoUrl = await uploadToCloudinary(personalData.profilePhoto);
+          const vehiclePhotoUrl = await uploadToCloudinary(vehicleData.vehiclePhoto);
+          const licenseFrontUrl = await uploadToCloudinary(docsData.licenseFront);
+          const licenseBackUrl = await uploadToCloudinary(docsData.licenseBack);
+
+          const soatUri = docsData.soatFile?.uri || docsData.soatFile;
+          const soatUrl = await uploadToCloudinary(soatUri, docsData.soatFile?.isPdf);
+
+          let technoUrl = null;
+          if (docsData.technoFile) {
+            const technoUri = docsData.technoFile?.uri || docsData.technoFile;
+            technoUrl = await uploadToCloudinary(technoUri, docsData.technoFile?.isPdf);
+          }
+
+          // 2. Construir objeto de conductor con URLs públicas de Cloudinary
           const newDriver = {
             ...personalData,
-            vehicle: vehicleData,
-            documents: docsData,
+            profilePhoto: profilePhotoUrl,
+            vehicle: {
+              ...vehicleData,
+              vehiclePhoto: vehiclePhotoUrl,
+            },
+            documents: {
+              ...docsData,
+              licenseFront: licenseFrontUrl,
+              licenseBack: licenseBackUrl,
+              soatFile: soatUrl,
+              technoFile: technoUrl,
+            },
             status: 'Pendiente',
             registeredAt: new Date().toISOString()
           };
 
+          // 3. Guardar en Firestore
           await addDoc(collection(db, 'drivers'), newDriver);
 
-          console.log('Solicitud enviada con éxito. Estado: Pendiente');
+          setLoading(false);
           Alert.alert(
             '¡Registro Completado!',
-            'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
+            'Tu solicitud ha sido enviada con éxito. Las imágenes y documentos fueron subidos a la nube y tu cuenta está en revisión.',
             [{ text: 'Aceptar' }]
           );
         } catch (error) {
-          console.log('Error al guardar:', error);
-          Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+          setLoading(false);
+          console.log('Error al guardar o subir archivos:', error);
+          Alert.alert('Error', 'No se pudo completar el registro ni la carga de archivos. Intenta de nuevo.');
         }
       }
     }

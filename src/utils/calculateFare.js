@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #3
+// AI-assisted: see docs/AI_LOG.md #3 #15
 import PRICING_CONFIG from '../config/pricing';
 
 export const calculateFare = ({ distanceKm, durationMin, category = 'economy', tip = 0 }) => {
@@ -16,12 +16,15 @@ export const calculateFare = ({ distanceKm, durationMin, category = 'economy', t
 
   const commission = fare * PRICING_CONFIG.PLATFORM_COMMISSION_RATE;
 
-  const driverEarnings = fare - commission + tip;
+  // Ganancia neta exacta sin mezclar la propina en el desglose base
+  const driverEarnings = fare - commission;
 
   return {
     fare,
     commission,
     driverEarnings,
+    tip,
+    totalDriverEarningsWithTip: driverEarnings + tip,
     commissionRate: PRICING_CONFIG.PLATFORM_COMMISSION_RATE
   };
 };

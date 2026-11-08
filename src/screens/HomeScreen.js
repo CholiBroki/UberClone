@@ -21,6 +21,7 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
 
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [activeRoute, setActiveRoute] = useState(null);
 
   // Simulación: generar viaje entrante a los 4 segundos de estar Disponible
   useEffect(() => {
@@ -31,6 +32,8 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
           id: 'TRIP_101',
           originAddress: 'Parque Lleras, Poblado',
           destinationAddress: 'Centro Comercial Santafé',
+          originCoords: { latitude: 6.2088, longitude: -75.5678 },
+          destinationCoords: { latitude: 6.1969, longitude: -75.5738 },
           distanceKm: 6.5,
           durationMin: 18,
           category: 'economy',
@@ -61,20 +64,50 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
     if (!value) {
       setIncomingRequest(null);
       setShowModal(false);
+      setActiveRoute(null);
     }
   };
 
   const handleAcceptTrip = useCallback((requestData, fareInfo) => {
-    setShowModal(false);
-    Alert.alert(
-      '¡Viaje Aceptado!',
-      `Navegando al origen.\nGanancia Neta: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`
-    );
-  }, []);
+  setShowModal(false);
+  
+  if (requestData.originCoords && requestData.destinationCoords) {
+    setActiveRoute({
+      origin: requestData.originCoords,
+      destination: requestData.destinationCoords,
+    });
+  }
+
+  Alert.alert(
+    '¡Viaje Aceptado!',
+    `Ruta trazada hacia el origen.\nGanancia Neta Est: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`,
+    [
+      {
+        text: 'Simular Finalizar Viaje',
+        onPress: () => handleCompleteTrip(fareInfo),
+      },
+    ]
+  );
+}, []);
+
+  const handleCompleteTrip = (fareInfo) => {
+  setActiveRoute(null);
+  setIncomingRequest(null);
+
+  // Cálculo neto: Tarifa - Comisión (sin contar propina en la tarifa base)
+  const netEarningsWithoutTip = fareInfo.fare - fareInfo.commission;
+
+  Alert.alert(
+    '¡Viaje Completado!',
+    `Pago procesado mediante Mercado Pago.\n\nTotal Cobrado: $${fareInfo.fare.toLocaleString('es-CO')} COP\nComisión Plataforma (20%): -$${fareInfo.commission.toLocaleString('es-CO')} COP\nGanancia Neta Conductor: $${netEarningsWithoutTip.toLocaleString('es-CO')} COP`,
+    [{ text: 'Entendido' }]
+  );
+};
 
   const handleRejectTrip = useCallback((reason) => {
     setShowModal(false);
     setIncomingRequest(null);
+    setActiveRoute(null);
     if (reason === 'timeout') {
       Alert.alert(
         'Tiempo agotado',
@@ -87,11 +120,12 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Mapa de fondo (Leaflet dentro de un WebView) */}
+      {/* Mapa de fondo con soporte de trazado de ruta OSRM */}
       <LeafletMap
         latitude={location.latitude}
         longitude={location.longitude}
         available={isAvailable}
+        route={activeRoute}
       />
 
       {/* Barra de encabezado flotante */}
