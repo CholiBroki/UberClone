@@ -1,19 +1,28 @@
-// AI-assisted: see docs/AI_LOG.md #10
-import React, { useState, useEffect } from 'react';
-import {View, Text, StyleSheet, Switch, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert} from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+// AI-assisted: see docs/AI_LOG.md #10 #15
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Switch,
+  TouchableOpacity,
+  StatusBar,
+  Platform,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDriverLocation } from '../hooks/useDriverLocation';
 import IncomingRequestModal from '../components/IncomingRequestModal';
+import LeafletMap from '../components/LeafletMap';
 
 const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
   const [isAvailable, setIsAvailable] = useState(false);
   const { location } = useDriverLocation(isAvailable, driverStatus);
-  
+
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Simulación: Generar viaje entrante a los 4 segundos de estar Disponible
+  // Simulación: generar viaje entrante a los 4 segundos de estar Disponible
   useEffect(() => {
     let timeout = null;
     if (isAvailable && driverStatus === 'Aprobado' && !incomingRequest) {
@@ -26,7 +35,7 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
           durationMin: 18,
           category: 'economy',
           paymentMethod: 'mercadopago',
-          tip: 2000
+          tip: 2000,
         };
         setIncomingRequest(mockTrip);
         setShowModal(true);
@@ -55,62 +64,56 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
     }
   };
 
-  const handleAcceptTrip = (requestData, fareInfo) => {
+  const handleAcceptTrip = useCallback((requestData, fareInfo) => {
     setShowModal(false);
     Alert.alert(
       '¡Viaje Aceptado!',
       `Navegando al origen.\nGanancia Neta: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`
     );
-  };
+  }, []);
 
-  const handleRejectTrip = (reason) => {
+  const handleRejectTrip = useCallback((reason) => {
     setShowModal(false);
     setIncomingRequest(null);
     if (reason === 'timeout') {
-      Alert.alert('Tiempo agotado', 'La solicitud ha sido rechazada automáticamente por el sistema.');
+      Alert.alert(
+        'Tiempo agotado',
+        'La solicitud ha sido rechazada automáticamente por el sistema.'
+      );
     }
-  };
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Mapa de Fondo */}
-      <MapView
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        region={location}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-      >
-        {isAvailable && (
-          <Marker
-            coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-            title="Tu Vehículo"
-            description="Estás disponible para recibir carreras"
-          >
-            <View style={styles.driverMarker}>
-              <Ionicons name="car" size={22} color="#FFFFFF" />
-            </View>
-          </Marker>
-        )}
-      </MapView>
+      {/* Mapa de fondo (Leaflet dentro de un WebView) */}
+      <LeafletMap
+        latitude={location.latitude}
+        longitude={location.longitude}
+        available={isAvailable}
+      />
 
-      {/* Bar de Encabezado Flotante */}
+      {/* Barra de encabezado flotante */}
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.menuButton} onPress={onOpenProfile}>
           <Ionicons name="menu-outline" size={26} color="#0A2540" />
         </TouchableOpacity>
 
         <View style={styles.headerStatusBadge}>
-          <View style={[styles.statusDot, { backgroundColor: isAvailable ? '#22C55E' : '#EF4444' }]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: isAvailable ? '#22C55E' : '#EF4444' },
+            ]}
+          />
           <Text style={styles.headerStatusText}>
             {isAvailable ? 'Disponible' : 'No disponible'}
           </Text>
         </View>
       </View>
 
-      {/* Tarjeta Inferior de Control de Disponibilidad */}
+      {/* Tarjeta inferior de disponibilidad */}
       <View style={styles.bottomCard}>
         <View style={styles.switchRow}>
           <View style={styles.switchInfo}>
@@ -134,43 +137,25 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
         </View>
       </View>
 
-      {/* Modal de Solicitud Entrante */}
+      {/* Modal de solicitud entrante */}
       <IncomingRequestModal
         visible={showModal}
         requestData={incomingRequest}
         onAccept={handleAcceptTrip}
         onReject={handleRejectTrip}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  driverMarker: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#0056D2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: '#E5E7EB',
   },
   topHeader: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 16,
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 56,
     left: 16,
     right: 16,
     flexDirection: 'row',

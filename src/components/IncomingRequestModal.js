@@ -5,8 +5,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
-  Alert
+  TouchableOpacity
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { calculateFare } from '../utils/calculateFare';
@@ -14,12 +13,11 @@ import { calculateFare } from '../utils/calculateFare';
 const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
   const [timeLeft, setTimeLeft] = useState(15);
 
-  // useCallback para la función de rechazo automático
   const handleAutoReject = useCallback(() => {
     onReject('timeout');
   }, [onReject]);
 
-  // Temporizador de 15 segundos con useEffect y función de limpieza
+  // Manejo del temporizador limpio sin llamadas síncronas en renderizado
   useEffect(() => {
     if (!visible) {
       setTimeLeft(15);
@@ -30,7 +28,7 @@ const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleAutoReject();
+          setTimeout(() => handleAutoReject(), 0);
           return 0;
         }
         return prev - 1;
@@ -40,12 +38,12 @@ const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
     return () => clearInterval(timer);
   }, [visible, handleAutoReject]);
 
-  if (!requestData) return null;
+  if (!requestData || !visible) return null;
 
-  // Cálculo de tarifa con calculateFare.js
+  // Cálculo de tarifa
   const fareInfo = calculateFare({
-    distanceKm: requestData.distanceKm,
-    durationMin: requestData.durationMin,
+    distanceKm: requestData.distanceKm || 0,
+    durationMin: requestData.durationMin || 0,
     category: requestData.category || 'economy',
     tip: requestData.tip || 0
   });
@@ -110,7 +108,7 @@ const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
             </View>
           </View>
 
-          {/* Datos Meta (Distancia, Tiempo, Categoría, Pago) */}
+          {/* Datos Meta */}
           <View style={styles.metaGrid}>
             <View style={styles.metaItem}>
               <Ionicons name="navigate-outline" size={16} color="#64748B" />

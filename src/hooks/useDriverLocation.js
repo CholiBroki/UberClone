@@ -12,51 +12,81 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
   });
   const [hasPermission, setHasPermission] = useState(false);
 
-  // Solicitar permisos de ubicación
+  // Solicitar permisos y obtener ubicación inicial
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se requiere acceso a la ubicación para operar como conductor.');
-        setHasPermission(false);
-        return;
-      }
-      setHasPermission(true);
+    let cancelled = false;
 
-      let currentLoc = await Location.getCurrentPositionAsync({});
-      setLocation(prev => ({
-        ...prev,
-        latitude: currentLoc.coords.latitude,
-        longitude: currentLoc.coords.longitude,
-      }));
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permiso denegado',
+            'Se requiere acceso a la ubicación para operar como conductor.'
+          );
+          setHasPermission(false);
+          return;
+        }
+        setHasPermission(true);
+
+        let current = await Location.getLastKnownPositionAsync();
+        if (!current) {
+          current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+        }
+
+        if (!cancelled && current) {
+          setLocation((prev) => ({
+            ...prev,
+            latitude: current.coords.latitude,
+            longitude: current.coords.longitude,
+          }));
+        }
+      } catch (error) {
+        console.log('useDriverLocation: no se pudo obtener la ubicación', error);
+      }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Seguimiento en tiempo real con limpieza limpia de useEffect
+  // Seguimiento en tiempo real con función de limpieza
   useEffect(() => {
     let subscription = null;
+    let cancelled = false;
 
     if (isAvailable && driverStatus === 'Aprobado' && hasPermission) {
-      console.log('useDriverLocation: Enviando ubicación en tiempo real...');
       (async () => {
-        subscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000,
-            distanceInterval: 10,
-          },
-          (newLocation) => {
-            const { latitude, longitude } = newLocation.coords;
-            setLocation(prev => ({ ...prev, latitude, longitude }));
-            // Aquí se enviará la coordenada a la base de datos (Firestore / REST API)
+        try {
+          const sub = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.High,
+              timeInterval: 5000,
+              distanceInterval: 10,
+            },
+            (newLocation) => {
+              const { latitude, longitude } = newLocation.coords;
+              setLocation((prev) => ({ ...prev, latitude, longitude }));
+              // Aquí se enviará la coordenada a la base de datos (Firestore)
+            }
+          );
+          if (cancelled) {
+            sub.remove();
+          } else {
+            subscription = sub;
           }
-        );
+        } catch (error) {
+          console.log('useDriverLocation: error en watchPosition', error);
+        }
       })();
     }
 
     return () => {
+      cancelled = true;
       if (subscription) {
-        console.log('useDriverLocation: Deteniendo seguimiento de ubicación (Limpieza useEffect)...');
         subscription.remove();
       }
     };

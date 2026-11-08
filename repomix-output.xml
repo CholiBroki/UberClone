@@ -52,6 +52,7 @@ assets/
 src/
   components/
     IncomingRequestModal.js
+    LeafletMap.js
   config/
     pricing.js
   hooks/
@@ -81,6 +82,118 @@ package.json
 <files>
 This section contains the contents of the repository's files.
 
+<file path="src/components/LeafletMap.js">
+// AI-assisted: see docs/AI_LOG.md #15
+import React, { useRef, useEffect, useMemo } from 'react';
+import { StyleSheet } from 'react-native';
+import { WebView } from 'react-native-webview';
+
+// Genera la página HTML que se mostrará dentro del WebView.
+// Solo se usa para la carga inicial; después se actualiza con JavaScript.
+const buildHtml = (lat, lng) => `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0; background: #E5E7EB; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1. Crear el mapa centrado en la posición inicial
+    var map = L.map('map', { zoomControl: false }).setView([${lat}, ${lng}], 16);
+
+    // 2. Capa principal: OpenStreetMap (gratis, sin API key)
+    var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    // 3. Capa de respaldo: Esri World Street Map (gratis, sin API key)
+    //    Ojo: en Esri el orden es {z}/{y}/{x}
+    var esri = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+      }
+    );
+
+    osm.addTo(map);
+
+    // Si OSM falla varias veces (por ejemplo, bloqueo 403), cambiar a Esri
+    var errorCount = 0;
+    var switched = false;
+    osm.on('tileerror', function () {
+      errorCount++;
+      if (errorCount >= 4 && !switched) {
+        switched = true;
+        map.removeLayer(osm);
+        esri.addTo(map);
+      }
+    });
+
+    // 4. Marcador del conductor (círculo de color)
+    var me = L.circleMarker([${lat}, ${lng}], {
+      radius: 10,
+      color: '#FFFFFF',
+      weight: 3,
+      fillColor: '#EF4444',
+      fillOpacity: 1
+    }).addTo(map);
+
+    // 5. Funciones que React Native llamará desde afuera
+    window.setPos = function (lat, lng) {
+      me.setLatLng([lat, lng]);
+      map.setView([lat, lng], map.getZoom());
+    };
+
+    window.setAvailable = function (available) {
+      me.setStyle({ fillColor: available ? '#22C55E' : '#EF4444' });
+    };
+  </script>
+</body>
+</html>`;
+
+const LeafletMap = ({ latitude, longitude, available }) => {
+  const webRef = useRef(null);
+
+  // El HTML se genera una sola vez (arreglo de dependencias vacío).
+  // Si dependiera de latitude/longitude, el mapa se recargaría en cada movimiento.
+  const html = useMemo(() => buildHtml(latitude, longitude), []);
+
+  // Cuando cambia la ubicación, mover el marcador y centrar el mapa
+  useEffect(() => {
+    webRef.current?.injectJavaScript(
+      `window.setPos && window.setPos(${latitude}, ${longitude}); true;`
+    );
+  }, [latitude, longitude]);
+
+  // Cuando cambia la disponibilidad, cambiar el color del marcador
+  useEffect(() => {
+    webRef.current?.injectJavaScript(
+      `window.setAvailable && window.setAvailable(${available}); true;`
+    );
+  }, [available]);
+
+  return (
+    <WebView
+      ref={webRef}
+      originWhitelist={['*']}
+      source={{ html, baseUrl: 'https://localhost' }}
+      style={StyleSheet.absoluteFillObject}
+      javaScriptEnabled
+      domStorageEnabled
+    />
+  );
+};
+
+export default LeafletMap;
+</file>
+
 <file path=".claude/settings.json">
 {
   "enabledPlugins": {
@@ -97,8 +210,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
-  Alert
+  TouchableOpacity
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { calculateFare } from '../utils/calculateFare';
@@ -106,12 +218,11 @@ import { calculateFare } from '../utils/calculateFare';
 const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
   const [timeLeft, setTimeLeft] = useState(15);
 
-  // useCallback para la función de rechazo automático
   const handleAutoReject = useCallback(() => {
     onReject('timeout');
   }, [onReject]);
 
-  // Temporizador de 15 segundos con useEffect y función de limpieza
+  // Manejo del temporizador limpio sin llamadas síncronas en renderizado
   useEffect(() => {
     if (!visible) {
       setTimeLeft(15);
@@ -122,7 +233,7 @@ const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleAutoReject();
+          setTimeout(() => handleAutoReject(), 0);
           return 0;
         }
         return prev - 1;
@@ -132,12 +243,12 @@ const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
     return () => clearInterval(timer);
   }, [visible, handleAutoReject]);
 
-  if (!requestData) return null;
+  if (!requestData || !visible) return null;
 
-  // Cálculo de tarifa con calculateFare.js
+  // Cálculo de tarifa
   const fareInfo = calculateFare({
-    distanceKm: requestData.distanceKm,
-    durationMin: requestData.durationMin,
+    distanceKm: requestData.distanceKm || 0,
+    durationMin: requestData.durationMin || 0,
     category: requestData.category || 'economy',
     tip: requestData.tip || 0
   });
@@ -202,7 +313,7 @@ const IncomingRequestModal = ({ visible, requestData, onAccept, onReject }) => {
             </View>
           </View>
 
-          {/* Datos Meta (Distancia, Tiempo, Categoría, Pago) */}
+          {/* Datos Meta */}
           <View style={styles.metaGrid}>
             <View style={styles.metaItem}>
               <Ionicons name="navigate-outline" size={16} color="#64748B" />
@@ -422,51 +533,81 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
   });
   const [hasPermission, setHasPermission] = useState(false);
 
-  // Solicitar permisos de ubicación
+  // Solicitar permisos y obtener ubicación inicial
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se requiere acceso a la ubicación para operar como conductor.');
-        setHasPermission(false);
-        return;
-      }
-      setHasPermission(true);
+    let cancelled = false;
 
-      let currentLoc = await Location.getCurrentPositionAsync({});
-      setLocation(prev => ({
-        ...prev,
-        latitude: currentLoc.coords.latitude,
-        longitude: currentLoc.coords.longitude,
-      }));
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permiso denegado',
+            'Se requiere acceso a la ubicación para operar como conductor.'
+          );
+          setHasPermission(false);
+          return;
+        }
+        setHasPermission(true);
+
+        let current = await Location.getLastKnownPositionAsync();
+        if (!current) {
+          current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+        }
+
+        if (!cancelled && current) {
+          setLocation((prev) => ({
+            ...prev,
+            latitude: current.coords.latitude,
+            longitude: current.coords.longitude,
+          }));
+        }
+      } catch (error) {
+        console.log('useDriverLocation: no se pudo obtener la ubicación', error);
+      }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Seguimiento en tiempo real con limpieza limpia de useEffect
+  // Seguimiento en tiempo real con función de limpieza
   useEffect(() => {
     let subscription = null;
+    let cancelled = false;
 
     if (isAvailable && driverStatus === 'Aprobado' && hasPermission) {
-      console.log('useDriverLocation: Enviando ubicación en tiempo real...');
       (async () => {
-        subscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000,
-            distanceInterval: 10,
-          },
-          (newLocation) => {
-            const { latitude, longitude } = newLocation.coords;
-            setLocation(prev => ({ ...prev, latitude, longitude }));
-            // Aquí se enviará la coordenada a la base de datos (Firestore / REST API)
+        try {
+          const sub = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.High,
+              timeInterval: 5000,
+              distanceInterval: 10,
+            },
+            (newLocation) => {
+              const { latitude, longitude } = newLocation.coords;
+              setLocation((prev) => ({ ...prev, latitude, longitude }));
+              // Aquí se enviará la coordenada a la base de datos (Firestore)
+            }
+          );
+          if (cancelled) {
+            sub.remove();
+          } else {
+            subscription = sub;
           }
-        );
+        } catch (error) {
+          console.log('useDriverLocation: error en watchPosition', error);
+        }
       })();
     }
 
     return () => {
+      cancelled = true;
       if (subscription) {
-        console.log('useDriverLocation: Deteniendo seguimiento de ubicación (Limpieza useEffect)...');
         subscription.remove();
       }
     };
@@ -476,8 +617,135 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
 };
 </file>
 
+<file path="src/utils/calculateFare.js">
+// AI-assisted: see docs/AI_LOG.md #3
+import PRICING_CONFIG from '../config/pricing';
+
+export const calculateFare = ({ distanceKm, durationMin, category = 'economy', tip = 0 }) => {
+  const multiplier = PRICING_CONFIG.CATEGORY_MULTIPLIERS[category] || 1.0;
+  
+  const rawCalculated = PRICING_CONFIG.BASE_FARE + 
+    (distanceKm * PRICING_CONFIG.PRICE_PER_KM) + 
+    (durationMin * PRICING_CONFIG.PRICE_PER_MINUTE);
+
+  const rawFareWithCategory = rawCalculated * multiplier;
+
+  const rawFare = Math.max(PRICING_CONFIG.MINIMUM_FARE, rawFareWithCategory);
+
+  const fare = Math.round(rawFare / 100) * 100;
+
+  const commission = fare * PRICING_CONFIG.PLATFORM_COMMISSION_RATE;
+
+  const driverEarnings = fare - commission + tip;
+
+  return {
+    fare,
+    commission,
+    driverEarnings,
+    commissionRate: PRICING_CONFIG.PLATFORM_COMMISSION_RATE
+  };
+};
+</file>
+
+<file path="AGENTS.md">
+This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+
+## Expo has changed — do not trust your training data
+
+Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
+
+1. Read the major version of the `expo` package in `package.json`.
+2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
+3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
+
+## Commands
+
+Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
+
+```bash
+npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
+npx expo start              # start the dev server
+npx expo lint               # lint
+npx tsc --noEmit            # typecheck
+npx expo-doctor             # diagnose dependency and config issues
+npx expo install --fix      # fix incompatible package versions
+```
+
+Run lint and typecheck before declaring any task done.
+
+## Navigation & Routing
+
+- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
+- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
+- Docs: https://docs.expo.dev/router/introduction.md
+
+## Building with EAS
+
+Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
+Docs: https://docs.expo.dev/eas/index.md
+
+## Rules
+
+- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
+- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
+- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+</file>
+
+<file path="index.js">
+import { registerRootComponent } from 'expo';
+
+import App from './App';
+
+// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
+// It also ensures that whether you load the app in Expo Go or in a native build,
+// the environment is set up appropriately
+registerRootComponent(App);
+</file>
+
+<file path="LICENSE">
+The MIT License (MIT)
+
+Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="src/config/pricing.js">
+// AI-assisted: see docs/AI_LOG.md #2
+const PRICING_CONFIG = {
+  BASE_FARE: 3500,
+  PRICE_PER_KM: 1200,
+  PRICE_PER_MINUTE: 250,
+  MINIMUM_FARE: 6000,
+  PLATFORM_COMMISSION_RATE: 0.20,
+  CATEGORY_MULTIPLIERS: {
+    economy: 1.0,
+    xl: 1.4,
+    premium: 1.8
+  }
+};
+
+export default PRICING_CONFIG;
+</file>
+
 <file path="src/screens/DocumentsTab.js">
-// AI-assisted: see docs/AI_LOG.md #9
+// AI-assisted: see docs/AI_LOG.md #13
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -536,10 +804,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
 
     options.push({ text: 'Cancelar', onPress: () => {} });
 
-    Alert.alert(title, 'Selecciona una opción:', options,
-        { cancelable: true }
-    );
-    
+    Alert.alert(title, 'Selecciona una opción:', options, { cancelable: true });
   };
 
   const handleDocOrPdfUpload = (field, title) => {
@@ -580,9 +845,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
 
     options.push({ text: 'Cancelar', onPress: () => {} });
 
-    Alert.alert(title, 'Selecciona el formato a cargar:', options,
-        { cancelable: true }
-    );
+    Alert.alert(title, 'Selecciona el formato a cargar:', options, { cancelable: true });
   };
 
   return (
@@ -608,6 +871,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
             placeholder="Ej. 1063189230"
             placeholderTextColor="#A0A0A0"
             keyboardType="numeric"
+            maxLength={10}
             value={docsData.licenseNumber}
             onChangeText={(val) => handleChange('licenseNumber', val)}
           />
@@ -771,7 +1035,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
           <View style={{ flex: 1 }}>
             <Text style={styles.commissionTitle}>Comisión de la Plataforma</Text>
             <Text style={styles.commissionText}>
-              Se aplicará una tarifa del <Text style={{ fontWeight: 'bold' }}>15%</Text> por cada servicio realizado. La liquidación se efectuará a través de Mercado Pago.
+              Se aplicará una tarifa del <Text style={{ fontWeight: 'bold' }}>20%</Text> por cada servicio realizado. La liquidación se efectuará a través de Mercado Pago.
             </Text>
           </View>
         </View>
@@ -1000,37 +1264,22 @@ export default DocumentsTab;
 </file>
 
 <file path="src/screens/LoginScreen.js">
-// AI-assisted: see docs/AI_LOG.md #14
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-  Alert
-} from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #13
+import React from 'react';
+import {View,Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Alert,} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-const LoginScreen = ({ onGoToRegister }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoginMode, setIsLoginMode] = useState(false);
-
-  const handleSubmit = () => {
-    if (!email || !password) {
-      Alert.alert('Campos requeridos', 'Por favor ingresa tu correo y contraseña.');
-      return;
-    }
-
-    if (isLoginMode) {
-      // Modo Iniciar Sesión: solo valida campos y muestra mensaje, no redirige a ningún screen
-      Alert.alert('Iniciar sesión', 'Funcionalidad de inicio de sesión en construcción.');
+export default function LoginScreen({ onLogin, onNavigateRegister }) {
+  // Manejador temporal para Iniciar Sesion (no navega a ninguna pantalla por ahora)
+  const handleLoginPress = () => {
+    if (onLogin) {
+      onLogin();
     } else {
-      // Modo Crear Cuenta: envía a la pantalla de registro de 3 pestañas
-      if (onGoToRegister) onGoToRegister({ email, password });
+      Alert.alert(
+        'Próximamente',
+        'El inicio de sesión se habilitará en la siguiente fase.',
+        [{ text: 'Entendido' }]
+      );
     }
   };
 
@@ -1038,175 +1287,191 @@ const LoginScreen = ({ onGoToRegister }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <View style={styles.content}>
-        {/* Título Principal */}
-        <Text style={styles.title}>UberClone Conductor</Text>
-
-        {/* Campo Correo */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Correo</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="ejemplo@correo.com"
-            placeholderTextColor="#A0A0A0"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+      {/* Sección Superior: Icono con Carrito y Tipografía Stylized */}
+      <View style={styles.headerContainer}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="car" size={48} color="#FFFFFF" />
         </View>
 
-        {/* Campo Contraseña */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Contraseña</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#A0A0A0"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
+        <Text style={styles.brandTitle}>UberClone</Text>
 
-        {/* Botón Principal Azul */}
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>
-            {isLoginMode ? 'Iniciar sesión' : 'Crear cuenta'}
-          </Text>
+        <Text style={styles.mainHeading}>
+          Conduce, genera ingresos{"\n"}y llega <Text style={styles.blueAccent}>más lejos</Text>
+        </Text>
+
+        <Text style={styles.subHeading}>
+          Únete a nuestra plataforma y sé parte de una comunidad de conductores.
+        </Text>
+      </View>
+
+      {/* Sección Inferior: Botones de Acción */}
+      <View style={styles.buttonContainer}>
+        {/* Botón Iniciar sesión (sin navegación por ahora) */}
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={handleLoginPress}
+          activeOpacity={0.85}
+        >
+          <View style={styles.leftBtnGroup}>
+            <Ionicons name="person" size={20} color="#FFFFFF" />
+            <View style={styles.verticalDividerPrimary} />
+            <Text style={styles.primaryButtonText}>Iniciar sesión</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* Enlace de Alternar Modo */}
+        {/* Botón Registrarse (Redirige a las pestañas de registro) */}
         <TouchableOpacity
-          style={styles.switchModeButton}
-          onPress={() => setIsLoginMode(!isLoginMode)}
+          style={styles.secondaryButton}
+          onPress={onNavigateRegister}
+          activeOpacity={0.85}
         >
-          <Text style={styles.switchModeText}>
-            {isLoginMode ? 'No tengo cuenta' : 'Ya tengo cuenta'}
-          </Text>
+          <View style={styles.leftBtnGroup}>
+            <Ionicons name="person-add" size={20} color="#0052CC" />
+            <View style={styles.verticalDividerSecondary} />
+            <Text style={styles.secondaryButtonText}>Registrarse</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#0052CC" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    justifyContent: 'space-between',
+    paddingHorizontal: 28,
+    paddingTop: 50,
+    paddingBottom: 36,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
+  headerContainer: {
+    alignItems: 'center',
+    marginTop: 30,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0A2540',
-    marginBottom: 32,
-  },
-  fieldGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 8,
-  },
-  input: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#F8FAFC',
-    color: '#0A2540',
-  },
-  primaryButton: {
-    height: 54,
-    backgroundColor: '#0056D2',
-    borderRadius: 30,
+  iconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#0052CC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
     marginBottom: 20,
-    elevation: 4,
-    shadowColor: '#0056D2',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0052CC',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  brandTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#0052CC',
+    marginBottom: 24,
+    letterSpacing: -0.5,
+  },
+  mainHeading: {
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+    color: '#091E42',
+    lineHeight: 36,
+    marginBottom: 14,
+    letterSpacing: -0.3,
+  },
+  blueAccent: {
+    color: '#0052CC',
+    fontWeight: '800',
+  },
+  subHeading: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#6B778C',
+    textAlign: 'center',
+    paddingHorizontal: 10,
+    lineHeight: 23,
+    letterSpacing: 0.1,
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 10,
+  },
+  primaryButton: {
+    backgroundColor: '#0052CC',
+    borderRadius: 30,
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+    shadowColor: '#0052CC',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 8,
+    elevation: 4,
+  },
+  secondaryButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.8,
+    borderColor: '#0052CC',
+    borderRadius: 30,
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+  },
+  leftBtnGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verticalDividerPrimary: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 14,
+  },
+  verticalDividerSecondary: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#DFE1E6',
+    marginHorizontal: 14,
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  switchModeButton: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  switchModeText: {
-    fontSize: 15,
-    color: '#0056D2',
-    fontWeight: '600',
+  secondaryButtonText: {
+    color: '#0052CC',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
-
-export default LoginScreen;
 </file>
 
 <file path="src/service/firebase.js">
+// AI-assisted: see docs/AI_LOG.md #13
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBmFscp32iwlMZ-6wY4f-bssye5rw63Hd8",
-  authDomain: "uberclone-11943.firebaseapp.com",
-  projectId: "uberclone-11943",
-  storageBucket: "uberclone-11943.firebasestorage.app",
-  messagingSenderId: "879857380599",
-  appId: "1:879857380599:web:5d4d8035489357831337f2",
-  measurementId: "G-XPXLWP986L"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-</file>
-
-<file path="src/utils/calculateFare.js">
-// AI-assisted: see docs/AI_LOG.md #3
-import PRICING_CONFIG from '../config/pricing';
-
-export const calculateFare = ({ distanceKm, durationMin, category = 'economy', tip = 0 }) => {
-  const multiplier = PRICING_CONFIG.CATEGORY_MULTIPLIERS[category] || 1.0;
-  
-  const rawCalculated = PRICING_CONFIG.BASE_FARE + 
-    (distanceKm * PRICING_CONFIG.PRICE_PER_KM) + 
-    (durationMin * PRICING_CONFIG.PRICE_PER_MINUTE);
-
-  const rawFareWithCategory = rawCalculated * multiplier;
-
-  const rawFare = Math.max(PRICING_CONFIG.MINIMUM_FARE, rawFareWithCategory);
-
-  const fare = Math.round(rawFare / 100) * 100;
-
-  const commission = fare * PRICING_CONFIG.PLATFORM_COMMISSION_RATE;
-
-  const driverEarnings = fare - commission + tip;
-
-  return {
-    fare,
-    commission,
-    driverEarnings,
-    commissionRate: PRICING_CONFIG.PLATFORM_COMMISSION_RATE
-  };
-};
 </file>
 
 <file path=".env.example">
@@ -1222,6 +1487,16 @@ GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # URL Base de la API
 API_BASE_URL=http://localhost:3000/api
+
+
+# Configuración de Firebase
+EXPO_PUBLIC_FIREBASE_API_KEY=
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=
 </file>
 
 <file path=".gitignore">
@@ -1258,6 +1533,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -1268,130 +1544,74 @@ yarn-error.*
 /android
 </file>
 
-<file path="AGENTS.md">
-This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
-
-## Expo has changed — do not trust your training data
-
-Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
-
-1. Read the major version of the `expo` package in `package.json`.
-2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
-3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
-
-## Commands
-
-Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
-
-```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
-```
-
-Run lint and typecheck before declaring any task done.
-
-## Navigation & Routing
-
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
-
-## Building with EAS
-
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
-Docs: https://docs.expo.dev/eas/index.md
-
-## Rules
-
-- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
-- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
-</file>
-
-<file path="index.js">
-import { registerRootComponent } from 'expo';
-
-import App from './App';
-
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
-</file>
-
-<file path="LICENSE">
-The MIT License (MIT)
-
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-</file>
-
-<file path="src/config/pricing.js">
-// AI-assisted: see docs/AI_LOG.md #2
-const PRICING_CONFIG = {
-  BASE_FARE: 3500,
-  PRICE_PER_KM: 1200,
-  PRICE_PER_MINUTE: 250,
-  MINIMUM_FARE: 6000,
-  PLATFORM_COMMISSION_RATE: 0.20,
-  CATEGORY_MULTIPLIERS: {
-    economy: 1.0,
-    xl: 1.4,
-    premium: 1.8
+<file path="app.json">
+{
+  "expo": {
+    "name": "uber-clone",
+    "slug": "uber-clone",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.anonymous.uberclone",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBmFscp32iwlMZ-6wY4f-bssye5rw63Hd8"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      [
+        "react-native-maps",
+        {
+          "apiKey": "AIzaSyBmFscp32iwlMZ-6wY4f-bssye5rw63Hd8"
+        }
+      ]
+    ]
   }
-};
-
-export default PRICING_CONFIG;
+}
 </file>
 
 <file path="src/screens/HomeScreen.js">
 // AI-assisted: see docs/AI_LOG.md #10
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Switch,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Platform,
-  Alert
+  Alert,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useDriverLocation } from '../hooks/useDriverLocation';
 import IncomingRequestModal from '../components/IncomingRequestModal';
+import LeafletMap from '../components/LeafletMap';
 
 const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
   const [isAvailable, setIsAvailable] = useState(false);
   const { location } = useDriverLocation(isAvailable, driverStatus);
-  
+
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Simulación: Generar viaje entrante a los 4 segundos de estar Disponible
+  // Simulación: generar viaje entrante a los 4 segundos de estar Disponible
   useEffect(() => {
     let timeout = null;
     if (isAvailable && driverStatus === 'Aprobado' && !incomingRequest) {
@@ -1404,7 +1624,7 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
           durationMin: 18,
           category: 'economy',
           paymentMethod: 'mercadopago',
-          tip: 2000
+          tip: 2000,
         };
         setIncomingRequest(mockTrip);
         setShowModal(true);
@@ -1433,62 +1653,56 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
     }
   };
 
-  const handleAcceptTrip = (requestData, fareInfo) => {
+  const handleAcceptTrip = useCallback((requestData, fareInfo) => {
     setShowModal(false);
     Alert.alert(
       '¡Viaje Aceptado!',
       `Navegando al origen.\nGanancia Neta: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`
     );
-  };
+  }, []);
 
-  const handleRejectTrip = (reason) => {
+  const handleRejectTrip = useCallback((reason) => {
     setShowModal(false);
     setIncomingRequest(null);
     if (reason === 'timeout') {
-      Alert.alert('Tiempo agotado', 'La solicitud ha sido rechazada automáticamente por el sistema.');
+      Alert.alert(
+        'Tiempo agotado',
+        'La solicitud ha sido rechazada automáticamente por el sistema.'
+      );
     }
-  };
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Mapa de Fondo */}
-      <MapView
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        region={location}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-      >
-        {isAvailable && (
-          <Marker
-            coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-            title="Tu Vehículo"
-            description="Estás disponible para recibir carreras"
-          >
-            <View style={styles.driverMarker}>
-              <Ionicons name="car" size={22} color="#FFFFFF" />
-            </View>
-          </Marker>
-        )}
-      </MapView>
+      {/* Mapa de fondo (Leaflet dentro de un WebView) */}
+      <LeafletMap
+        latitude={location.latitude}
+        longitude={location.longitude}
+        available={isAvailable}
+      />
 
-      {/* Bar de Encabezado Flotante */}
+      {/* Barra de encabezado flotante */}
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.menuButton} onPress={onOpenProfile}>
           <Ionicons name="menu-outline" size={26} color="#0A2540" />
         </TouchableOpacity>
 
         <View style={styles.headerStatusBadge}>
-          <View style={[styles.statusDot, { backgroundColor: isAvailable ? '#22C55E' : '#EF4444' }]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: isAvailable ? '#22C55E' : '#EF4444' },
+            ]}
+          />
           <Text style={styles.headerStatusText}>
             {isAvailable ? 'Disponible' : 'No disponible'}
           </Text>
         </View>
       </View>
 
-      {/* Tarjeta Inferior de Control de Disponibilidad */}
+      {/* Tarjeta inferior de disponibilidad */}
       <View style={styles.bottomCard}>
         <View style={styles.switchRow}>
           <View style={styles.switchInfo}>
@@ -1512,43 +1726,25 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
         </View>
       </View>
 
-      {/* Modal de Solicitud Entrante */}
+      {/* Modal de solicitud entrante */}
       <IncomingRequestModal
         visible={showModal}
         requestData={incomingRequest}
         onAccept={handleAcceptTrip}
         onReject={handleRejectTrip}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  driverMarker: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#0056D2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: '#E5E7EB',
   },
   topHeader: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 16,
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 56,
     left: 16,
     right: 16,
     flexDirection: 'row',
@@ -1629,36 +1825,6 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
-</file>
-
-<file path="app.json">
-{
-  "expo": {
-    "name": "uber-clone",
-    "slug": "uber-clone",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "@react-native-community/datetimepicker"
-    ]
-  }
-}
 </file>
 
 <file path="src/utils/validators.js">
@@ -1791,27 +1957,6 @@ export const validateDocumentsData = (data, vehicleYear) => {
 
   return errors;
 };
-</file>
-
-<file path="App.js">
-// AI-assisted: see docs/AI_LOG.md #7
-import React, { useState } from 'react';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-
-export default function App() {
-  const [screen, setScreen] = useState('login'); // 'login' o 'register'
-
-  if (screen === 'register') {
-    return <RegisterScreen />;
-  }
-
-  return (
-    <LoginScreen
-      onGoToRegister={() => setScreen('register')}
-    />
-  );
-}
 </file>
 
 <file path="src/screens/PersonalDataTab.js">
@@ -2570,10 +2715,87 @@ const styles = StyleSheet.create({
 export default VehicleTab;
 </file>
 
-<file path="src/screens/RegisterScreen.js">
-// AI-assisted: see docs/AI_LOG.md #7
+<file path="App.js">
+// AI-assisted: see docs/AI_LOG.md #14
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+import HomeScreen from './src/screens/HomeScreen';
+
+export default function App() {
+  const [screen, setScreen] = useState('login');
+  
+  const [driverStatus, setDriverStatus] = useState('Aprobado');
+
+  const handleLogin = () => {
+    setScreen('home');
+  };
+
+  // Navegar a las pestañas de registro
+  const handleGoToRegister = () => {
+    setScreen('register');
+  };
+
+  const handleBackToLogin = () => {
+    setScreen('login');
+  };
+
+  if (screen === 'register') {
+    return <RegisterScreen onBack={handleBackToLogin} />;
+  }
+
+  if (screen === 'home') {
+    return (
+      <HomeScreen 
+        driverStatus={driverStatus} 
+        onOpenProfile={() => setScreen('login')} 
+      />
+    );
+  }
+
+  return (
+    <LoginScreen
+      onLogin={handleLogin}
+      onNavigateRegister={handleGoToRegister}
+    />
+  );
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "uber-clone",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-community/datetimepicker": "9.2.1",
+    "@react-native-picker/picker": "2.11.4",
+    "expo": "~58.0.23",
+    "expo-document-picker": "~58.0.4",
+    "expo-image-picker": "~58.0.10",
+    "expo-location": "~58.0.20",
+    "expo-status-bar": "~58.0.4",
+    "firebase": "^13.2.0",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-maps": "1.29.11",
+    "react-native-webview": "14.0.1"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}
+</file>
+
+<file path="src/screens/RegisterScreen.js">
+// AI-assisted: see docs/AI_LOG.md #13
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert,KeyboardAvoidingView} from 'react-native';
 import PersonalDataTab from './PersonalDataTab';
 import VehicleTab from './VehicleTab';
 import DocumentsTab from './DocumentsTab';
@@ -2645,174 +2867,181 @@ const RegisterScreen = () => {
   };
 
   const handleNextOrSubmit = async () => {
-  if (activeTab === 1) {
-    setSubmittedTab1(true);
-    if (isPersonalValid) {
-      setActiveTab(2);
-    }
-  } else if (activeTab === 2) {
-    setSubmittedTab2(true);
-    if (isVehicleValid) {
-      setActiveTab(3);
-    }
-  } else if (activeTab === 3) {
-    setSubmittedTab3(true);
-    if (isPersonalValid && isVehicleValid && isDocsValid) {
-      try {
-        const newDriver = {
-          ...personalData,
-          vehicle: vehicleData,
-          documents: docsData,
-          status: 'Pendiente',
-          registeredAt: new Date().toISOString()
-        };
+    if (activeTab === 1) {
+      setSubmittedTab1(true);
+      if (isPersonalValid) {
+        setActiveTab(2);
+      }
+    } else if (activeTab === 2) {
+      setSubmittedTab2(true);
+      if (isVehicleValid) {
+        setActiveTab(3);
+      }
+    } else if (activeTab === 3) {
+      setSubmittedTab3(true);
+      if (isPersonalValid && isVehicleValid && isDocsValid) {
+        try {
+          const newDriver = {
+            ...personalData,
+            vehicle: vehicleData,
+            documents: docsData,
+            status: 'Pendiente',
+            registeredAt: new Date().toISOString()
+          };
 
-        await addDoc(collection(db, 'drivers'), newDriver);
+          await addDoc(collection(db, 'drivers'), newDriver);
 
-        console.log('Solicitud enviada con éxito. Estado: Pendiente');
-        Alert.alert(
-          '¡Registro Completado!',
-          'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
-          [{ text: 'Aceptar' }]
-        );
-      } catch (error) {
-        console.log('Error al guardar:', error);
-        Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+          console.log('Solicitud enviada con éxito. Estado: Pendiente');
+          Alert.alert(
+            '¡Registro Completado!',
+            'Tu solicitud ha sido enviada con éxito. Tu cuenta se encuentra en estado Pendiente de aprobación.',
+            [{ text: 'Aceptar' }]
+          );
+        } catch (error) {
+          console.log('Error al guardar:', error);
+          Alert.alert('Error', 'No se pudo guardar el registro. Intenta de nuevo.');
+        }
       }
     }
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2545" />
 
-      {/* Header Superior Azul Curvo */}
-      <View style={styles.topBanner}>
-        <View style={styles.tabHeader}>
-          {/* Pestaña 1 */}
-          <TouchableOpacity 
-            style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
-            onPress={() => handleTabPress(1)}
+      {/* Contenedor adaptativo completo */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
+      >
+        {/* Header Superior Azul Curvo */}
+        <View style={styles.topBanner}>
+          <View style={styles.tabHeader}>
+            {/* Pestaña 1 */}
+            <TouchableOpacity 
+              style={[styles.tabButton, activeTab === 1 && styles.activeTabButton]}
+              onPress={() => handleTabPress(1)}
+            >
+              <View style={styles.tabRow}>
+                {isPersonalValid ? (
+                  <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                ) : (
+                  <View style={[styles.stepNumber, activeTab === 1 && styles.activeStepNumber]}>
+                    <Text style={styles.stepText}>1</Text>
+                  </View>
+                )}
+                <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>Personales</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.stepDivider} />
+
+            {/* Pestaña 2 */}
+            <TouchableOpacity 
+              style={[
+                styles.tabButton, 
+                activeTab === 2 && styles.activeTabButton,
+                !isPersonalValid && styles.tabDisabled
+              ]}
+              onPress={() => handleTabPress(2)}
+            >
+              <View style={styles.tabRow}>
+                {isVehicleValid ? (
+                  <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                ) : (
+                  <View style={[styles.stepNumber, activeTab === 2 && styles.activeStepNumber]}>
+                    <Text style={styles.stepText}>2</Text>
+                  </View>
+                )}
+                <Text style={[
+                  styles.tabText, 
+                  activeTab === 2 && styles.activeTabText,
+                  !isPersonalValid && styles.tabDisabledText
+                ]}>
+                  Vehículo
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.stepDivider} />
+
+            {/* Pestaña 3 */}
+            <TouchableOpacity 
+              style={[
+                styles.tabButton, 
+                activeTab === 3 && styles.activeTabButton,
+                (!isPersonalValid || !isVehicleValid) && styles.tabDisabled
+              ]}
+              onPress={() => handleTabPress(3)}
+            >
+              <View style={styles.tabRow}>
+                {isDocsValid ? (
+                  <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                ) : (
+                  <View style={[styles.stepNumber, activeTab === 3 && styles.activeStepNumber]}>
+                    <Text style={styles.stepText}>3</Text>
+                  </View>
+                )}
+                <Text style={[
+                  styles.tabText, 
+                  activeTab === 3 && styles.activeTabText,
+                  (!isPersonalValid || !isVehicleValid) && styles.tabDisabledText
+                ]}>
+                  Documentos
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Contenido dinámico */}
+        <View style={styles.tabContent}>
+          {activeTab === 1 && (
+            <PersonalDataTab 
+              formData={personalData} 
+              setFormData={setPersonalData} 
+              errors={personalErrors}
+              touched={{ hasSubmitted: submittedTab1 }}
+            />
+          )}
+          {activeTab === 2 && (
+            <VehicleTab 
+              vehicleData={vehicleData} 
+              setVehicleData={setVehicleData} 
+              errors={vehicleErrors}
+              touched={{ hasSubmitted: submittedTab2 }}
+            />
+          )}
+          {activeTab === 3 && (
+            <DocumentsTab 
+              docsData={docsData} 
+              setDocsData={setDocsData} 
+              errors={docsErrors}
+              touched={{ hasSubmitted: submittedTab3 }}
+              vehicleYear={vehicleData.year}
+            />
+          )}
+        </View>
+
+        {/* Footer dinámico flotando siempre visible encima del teclado */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleNextOrSubmit}
           >
-            <View style={styles.tabRow}>
-              {isPersonalValid ? (
-                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              ) : (
-                <View style={[styles.stepNumber, activeTab === 1 && styles.activeStepNumber]}>
-                  <Text style={styles.stepText}>1</Text>
-                </View>
-              )}
-              <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>Personales</Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.stepDivider} />
-
-          {/* Pestaña 2 */}
-          <TouchableOpacity 
-            style={[
-              styles.tabButton, 
-              activeTab === 2 && styles.activeTabButton,
-              !isPersonalValid && styles.tabDisabled
-            ]}
-            onPress={() => handleTabPress(2)}
-          >
-            <View style={styles.tabRow}>
-              {isVehicleValid ? (
-                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              ) : (
-                <View style={[styles.stepNumber, activeTab === 2 && styles.activeStepNumber]}>
-                  <Text style={styles.stepText}>2</Text>
-                </View>
-              )}
-              <Text style={[
-                styles.tabText, 
-                activeTab === 2 && styles.activeTabText,
-                !isPersonalValid && styles.tabDisabledText
-              ]}>
-                Vehículo
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.stepDivider} />
-
-          {/* Pestaña 3 */}
-          <TouchableOpacity 
-            style={[
-              styles.tabButton, 
-              activeTab === 3 && styles.activeTabButton,
-              (!isPersonalValid || !isVehicleValid) && styles.tabDisabled
-            ]}
-            onPress={() => handleTabPress(3)}
-          >
-            <View style={styles.tabRow}>
-              {isDocsValid ? (
-                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              ) : (
-                <View style={[styles.stepNumber, activeTab === 3 && styles.activeStepNumber]}>
-                  <Text style={styles.stepText}>3</Text>
-                </View>
-              )}
-              <Text style={[
-                styles.tabText, 
-                activeTab === 3 && styles.activeTabText,
-                (!isPersonalValid || !isVehicleValid) && styles.tabDisabledText
-              ]}>
-                Documentos
-              </Text>
-            </View>
+            <Text style={styles.actionText}>
+              {activeTab === 3 ? 'Enviar registro' : 'Continuar'}
+            </Text>
+            <Ionicons 
+              name={activeTab === 3 ? "checkmark-done" : "arrow-forward"} 
+              size={18} 
+              color="#FFFFFF" 
+              style={{ marginLeft: 6 }} 
+            />
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Contenido dinámico */}
-      <View style={styles.tabContent}>
-        {activeTab === 1 && (
-          <PersonalDataTab 
-            formData={personalData} 
-            setFormData={setPersonalData} 
-            errors={personalErrors}
-            touched={{ hasSubmitted: submittedTab1 }}
-          />
-        )}
-        {activeTab === 2 && (
-          <VehicleTab 
-            vehicleData={vehicleData} 
-            setVehicleData={setVehicleData} 
-            errors={vehicleErrors}
-            touched={{ hasSubmitted: submittedTab2 }}
-          />
-        )}
-        {activeTab === 3 && (
-          <DocumentsTab 
-            docsData={docsData} 
-            setDocsData={setDocsData} 
-            errors={docsErrors}
-            touched={{ hasSubmitted: submittedTab3 }}
-            vehicleYear={vehicleData.year}
-          />
-        )}
-      </View>
-
-      {/* Footer dinámico */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handleNextOrSubmit}
-        >
-          <Text style={styles.actionText}>
-            {activeTab === 3 ? 'Enviar registro' : 'Continuar'}
-          </Text>
-          <Ionicons 
-            name={activeTab === 3 ? "checkmark-done" : "arrow-forward"} 
-            size={18} 
-            color="#FFFFFF" 
-            style={{ marginLeft: 6 }} 
-          />
-        </TouchableOpacity>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -2918,35 +3147,6 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
-</file>
-
-<file path="package.json">
-{
-  "name": "uber-clone",
-  "version": "1.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "@expo/vector-icons": "^15.0.2",
-    "@react-native-community/datetimepicker": "9.2.1",
-    "@react-native-picker/picker": "2.11.4",
-    "expo": "~58.0.21",
-    "expo-document-picker": "~58.0.4",
-    "expo-image-picker": "~58.0.10",
-    "expo-location": "~58.0.20",
-    "expo-status-bar": "~58.0.4",
-    "firebase": "^13.2.0",
-    "react": "19.3.0",
-    "react-native": "0.88.1",
-    "react-native-maps": "1.29.11"
-  },
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "private": true
-}
 </file>
 
 </files>
