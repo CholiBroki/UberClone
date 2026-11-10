@@ -1,10 +1,12 @@
-// AI-assisted: see docs/AI_LOG.md #16
-import React, { useState } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #17
+import React from 'react';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-import HomeScreen from './src/screens/HomeScreen';
+import { PreferencesProvider, usePreferences } from './src/context/PreferencesContext';
+import AuthNavigator from './src/navigation/AuthNavigator';
+import AppDrawer from './src/navigation/AppDrawer';
 
 function Splash({ message, onLogout }) {
   return (
@@ -22,38 +24,33 @@ function Splash({ message, onLogout }) {
 
 function Root() {
   const { user, driver, loading, logout } = useAuth();
-  const [screen, setScreen] = useState('login');
+  const { loaded } = usePreferences();
 
-  if (loading) return <Splash message="Cargando..." />;
+  // Esperar sesión y preferencias antes de decidir qué navegador mostrar
+  if (loading || !loaded) return <Splash message="Cargando..." />;
 
-  if (user && driver) {
-    // Temporal: el botón de menú cierra sesión. En el paso de navegación
-    // pasará a abrir el Drawer.
-    const confirmLogout = () =>
-      Alert.alert('Cerrar sesión', '¿Quieres salir de tu cuenta?', [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Salir', style: 'destructive', onPress: logout },
-      ]);
-
-    return <HomeScreen driverStatus={driver.status} onOpenProfile={confirmLogout} />;
-  }
-
-  if (user && !driver) {
-    return <Splash message="Preparando tu perfil..." onLogout={logout} />;
-  }
-
-  if (screen === 'register') {
-    return <RegisterScreen onBack={() => setScreen('login')} />;
-  }
-
-  return <LoginScreen onNavigateRegister={() => setScreen('register')} />;
+  return (
+    <NavigationContainer>
+      {user && driver ? (
+        <AppDrawer />
+      ) : user && !driver ? (
+        <Splash message="Preparando tu perfil..." onLogout={logout} />
+      ) : (
+        <AuthNavigator />
+      )}
+    </NavigationContainer>
+  );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Root />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PreferencesProvider>
+        <AuthProvider>
+          <Root />
+        </AuthProvider>
+      </PreferencesProvider>
+    </GestureHandlerRootView>
   );
 }
 

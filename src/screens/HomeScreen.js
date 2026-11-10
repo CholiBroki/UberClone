@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #10 #15
+// AI-assisted: see docs/AI_LOG.md #10 #15 #17
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, StatusBar, Platform, Alert,} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,8 +6,22 @@ import { useDriverLocation } from '../hooks/useDriverLocation';
 import IncomingRequestModal from '../components/IncomingRequestModal';
 import LeafletMap from '../components/LeafletMap';
 
-const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
+const HomeScreen = ({
+  driverStatus = 'Pendiente',
+  onOpenProfile,
+  initialAvailable = false,
+  onAvailabilityChange,
+}) => {
   const [isAvailable, setIsAvailable] = useState(false);
+
+  // Restaurar el último estado de disponibilidad (solo con la cuenta aprobada).
+  // Se ejecuta una sola vez al montar la pantalla.
+  useEffect(() => {
+    if (initialAvailable && driverStatus === 'Aprobado') {
+      setIsAvailable(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { location } = useDriverLocation(isAvailable, driverStatus);
 
   const [incomingRequest, setIncomingRequest] = useState(null);
@@ -48,10 +62,12 @@ const HomeScreen = ({ driverStatus = 'Aprobado', onOpenProfile }) => {
         'Tu solicitud de registro se encuentra Pendiente de aprobación. No puedes ponerte Disponible hasta que tus documentos sean verificados.'
       );
       setIsAvailable(false);
+      onAvailabilityChange?.(false);
       return;
     }
 
     setIsAvailable(value);
+    onAvailabilityChange?.(value);
     if (!value) {
       setIncomingRequest(null);
       setShowModal(false);
