@@ -1,9 +1,10 @@
-// AI-assisted: see docs/AI_LOG.md #4
+// AI-assisted: see docs/AI_LOG.md #4 #16
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import { formatLocalDate, parseLocalDate } from '../utils/dateUtils';
 import { Ionicons } from '@expo/vector-icons';
 
 const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
@@ -16,7 +17,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
+      const formattedDate = formatLocalDate(selectedDate);
       handleChange('birthDate', formattedDate);
     }
   };
@@ -191,6 +192,28 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
           )}
         </View>
 
+        {/* Contraseña */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.labelRow}>
+            <Ionicons name="lock-closed-outline" size={18} color="#0056D2" />
+            <Text style={styles.label}>Contraseña</Text>
+          </View>
+          <TextInput
+            style={[styles.input, touched.hasSubmitted && errors.password && styles.inputError]}
+            placeholder="Mínimo 8 caracteres, letras y números"
+            placeholderTextColor="#A0A0A0"
+            secureTextEntry
+            autoCapitalize="none"
+            value={formData.password}
+            onChangeText={(val) => handleChange('password', val)}
+          />
+          {touched.hasSubmitted && errors.password ? (
+            <Text style={styles.errorText}>{errors.password}</Text>
+          ) : (
+            <Text style={styles.hintText}>Mínimo 8 caracteres, combinando letras y números.</Text>
+          )}
+        </View>
+
         {/* Fecha de nacimiento */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
@@ -211,7 +234,7 @@ const PersonalDataTab = ({ formData, setFormData, errors, touched }) => {
 
         {showDatePicker && (
           <DateTimePicker
-            value={formData.birthDate ? new Date(formData.birthDate) : new Date(2005, 0, 1)}
+            value={formData.birthDate ? parseLocalDate(formData.birthDate) : new Date(2005, 0, 1)}
             mode="date"
             display="default"
             onChange={handleDateChange}

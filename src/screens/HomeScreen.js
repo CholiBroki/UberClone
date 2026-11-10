@@ -1,15 +1,6 @@
 // AI-assisted: see docs/AI_LOG.md #10 #15
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Switch,
-  TouchableOpacity,
-  StatusBar,
-  Platform,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, StatusBar, Platform, Alert,} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDriverLocation } from '../hooks/useDriverLocation';
 import IncomingRequestModal from '../components/IncomingRequestModal';

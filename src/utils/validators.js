@@ -1,9 +1,22 @@
-// AI-assisted: see docs/AI_LOG.md #3
+// AI-assisted: see docs/AI_LOG.md #16
+import { formatLocalDate, parseLocalDate } from './dateUtils';
+
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+const NAME_REGEX = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?: [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/;
+const PLATE_REGEX = /^[A-Z]{3}\d{3}$/;
+
 export const validatePersonalData = (data) => {
   const errors = {};
 
-  if (!data.fullName || data.fullName.trim().length < 3) {
-    errors.fullName = 'El nombre completo debe tener al menos 3 caracteres.';
+  const name = (data.fullName || '').trim();
+  if (!name) {
+    errors.fullName = 'El nombre completo es obligatorio.';
+  } else if (name.length < 3) {
+    errors.fullName = 'El nombre debe tener al menos 3 caracteres.';
+  } else if (name.length > 50) {
+    errors.fullName = 'El nombre no puede superar 50 caracteres.';
+  } else if (!NAME_REGEX.test(name)) {
+    errors.fullName = 'Solo se permiten letras y espacios.';
   }
 
   if (!data.idNumber || !/^\d{6,10}$/.test(data.idNumber)) {
@@ -14,14 +27,22 @@ export const validatePersonalData = (data) => {
     errors.phone = 'El número de celular debe tener exactamente 10 dígitos.';
   }
 
-  if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.email = 'Ingrese un correo electrónico válido.';
+  if (!data.email || !EMAIL_REGEX.test(data.email.trim())) {
+    errors.email = 'Ingrese un correo válido con @ y dominio (ej. nombre@dominio.com).';
+  }
+
+  if (!data.password) {
+    errors.password = 'La contraseña es obligatoria.';
+  } else if (data.password.length < 8) {
+    errors.password = 'La contraseña debe tener al menos 8 caracteres.';
+  } else if (!/[A-Za-z]/.test(data.password) || !/\d/.test(data.password)) {
+    errors.password = 'La contraseña debe combinar letras y números.';
   }
 
   if (!data.birthDate) {
     errors.birthDate = 'La fecha de nacimiento es obligatoria.';
   } else {
-    const birth = new Date(data.birthDate);
+    const birth = parseLocalDate(data.birthDate);
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
@@ -33,58 +54,56 @@ export const validatePersonalData = (data) => {
     }
   }
 
-  if (!data.gender) {
-    errors.gender = 'Debe seleccionar un género.';
-  }
-
-  if (!data.profilePhoto) {
-    errors.profilePhoto = 'La foto de perfil es obligatoria.';
-  }
+  if (!data.gender) errors.gender = 'Debe seleccionar un género.';
+  if (!data.profilePhoto) errors.profilePhoto = 'La foto de perfil es obligatoria.';
 
   return errors;
 };
 
 export const validateVehicleData = (data) => {
   const errors = {};
+  const currentYear = new Date().getFullYear();
 
-  if (!data.category) {
-    errors.category = 'Debe seleccionar una categoría.';
-  }
+  if (!data.category) errors.category = 'Debe seleccionar una categoría.';
 
-  if (!data.plate || !/^[A-Z]{3}\d{3}$/.test(data.plate)) {
+  // La placa se convierte a mayúsculas antes de validar
+  const plate = (data.plate || '').trim().toUpperCase();
+  if (!PLATE_REGEX.test(plate)) {
     errors.plate = 'La placa debe tener formato colombiano (3 letras y 3 números). Ej: ABC123';
   }
 
-  if (!data.brand || data.brand.trim().length < 2) {
-    errors.brand = 'La marca del vehículo es obligatoria.';
-  }
+  const brand = (data.brand || '').trim();
+  if (!brand) errors.brand = 'La marca del vehículo es obligatoria.';
+  else if (brand.length > 30) errors.brand = 'La marca no puede superar 30 caracteres.';
 
-  if (!data.model || data.model.trim().length < 1) {
-    errors.model = 'El modelo del vehículo es obligatorio.';
-  }
+  const model = (data.model || '').trim();
+  if (!model) errors.model = 'El modelo del vehículo es obligatorio.';
+  else if (model.length > 30) errors.model = 'El modelo no puede superar 30 caracteres.';
 
   if (!data.year || !/^\d{4}$/.test(data.year)) {
     errors.year = 'Ingrese un año válido (4 dígitos). Ej: 2022';
+  } else if (parseInt(data.year, 10) > currentYear) {
+    errors.year = `El año no puede ser mayor a ${currentYear}.`;
+  } else if (parseInt(data.year, 10) < 1950) {
+    errors.year = 'Ingrese un año válido (desde 1950).';
   }
 
-  if (!data.capacity || isNaN(data.capacity) || parseInt(data.capacity) < 1) {
-    errors.capacity = 'La capacidad de pasajeros es obligatoria.';
+  const capacity = parseInt(data.capacity, 10);
+  if (!data.capacity || !/^\d+$/.test(String(data.capacity)) || capacity < 1) {
+    errors.capacity = 'La capacidad de pasajeros es obligatoria (número entero).';
+  } else if (data.category === 'xl' && capacity < 6) {
+    errors.capacity = 'La categoría XL exige una capacidad mínima de 6 pasajeros.';
   }
 
-  if (!data.color) {
-    errors.color = 'Debe seleccionar un color.';
-  }
-
-  if (!data.vehiclePhoto) {
-    errors.vehiclePhoto = 'La foto del vehículo es obligatoria.';
-  }
+  if (!data.color) errors.color = 'Debe seleccionar un color.';
+  if (!data.vehiclePhoto) errors.vehiclePhoto = 'La foto del vehículo (con la placa visible) es obligatoria.';
 
   return errors;
 };
 
 export const validateDocumentsData = (data, vehicleYear) => {
   const errors = {};
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalDate();
 
   if (!data.licenseFront) errors.licenseFront = 'La foto frontal de la licencia es obligatoria.';
   if (!data.licenseBack) errors.licenseBack = 'La foto posterior de la licencia es obligatoria.';
@@ -105,8 +124,8 @@ export const validateDocumentsData = (data, vehicleYear) => {
   }
 
   const currentYear = new Date().getFullYear();
-  const vYear = parseInt(vehicleYear) || currentYear;
-  const isExempt = (currentYear - vYear) <= 5;
+  const vYear = parseInt(vehicleYear, 10) || currentYear;
+  const isExempt = currentYear - vYear <= 5;
 
   if (!isExempt) {
     if (!data.technoFile) errors.technoFile = 'La revisión técnico-mecánica es obligatoria para vehículos con más de 5 años.';
@@ -117,13 +136,11 @@ export const validateDocumentsData = (data, vehicleYear) => {
     }
   }
 
-  if (!data.mpEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.mpEmail)) {
+  if (!data.mpEmail || !EMAIL_REGEX.test(data.mpEmail.trim())) {
     errors.mpEmail = 'Ingrese un correo de Mercado Pago válido.';
   }
 
-  if (!data.acceptedTerms) {
-    errors.acceptedTerms = 'Debe aceptar los Términos y Condiciones.';
-  }
+  if (!data.acceptedTerms) errors.acceptedTerms = 'Debe aceptar los Términos y Condiciones.';
 
   return errors;
 };

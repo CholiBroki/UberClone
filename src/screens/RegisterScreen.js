@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #16
+// AI-assisted: see docs/AI_LOG.md #13 #15 #16
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert,KeyboardAvoidingView} from 'react-native';
 import PersonalDataTab from './PersonalDataTab';
@@ -6,12 +6,12 @@ import VehicleTab from './VehicleTab';
 import DocumentsTab from './DocumentsTab';
 import { validatePersonalData, validateVehicleData, validateDocumentsData } from '../utils/validators';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../service/firebase';
+import { useAuth } from '../context/AuthContext';
 import { uploadToCloudinary } from '../service/cloudinary';
 import { ActivityIndicator } from 'react-native';
 
-const RegisterScreen = () => {
+const RegisterScreen = ({ onBack }) => {
+  const { registerDriver } = useAuth();
   const [activeTab, setActiveTab] = useState(1);
   const [submittedTab1, setSubmittedTab1] = useState(false);
   const [submittedTab2, setSubmittedTab2] = useState(false);
@@ -23,6 +23,7 @@ const RegisterScreen = () => {
     idNumber: '',
     phone: '',
     email: '',
+    password: '',
     birthDate: '',
     gender: '',
     language: 'Español'
@@ -107,27 +108,29 @@ const RegisterScreen = () => {
             technoUrl = await uploadToCloudinary(technoUri, docsData.technoFile?.isPdf);
           }
 
-          // 2. Construir objeto de conductor con URLs públicas de Cloudinary
-          const newDriver = {
-            ...personalData,
+          await registerDriver(personalData.email, password, {
+            ...personalWithoutPassword,
+            fullName: personalData.fullName.trim(),
             profilePhoto: profilePhotoUrl,
             vehicle: {
               ...vehicleData,
+              brand: vehicleData.brand.trim(),
+              model: vehicleData.model.trim(),
+              plate: vehicleData.plate.trim().toUpperCase(),
+              year: Number(vehicleData.year),
+              capacity: Number(vehicleData.capacity),
               vehiclePhoto: vehiclePhotoUrl,
             },
             documents: {
               ...docsData,
+              licenseNumber: docsData.licenseNumber.trim(),
               licenseFront: licenseFrontUrl,
               licenseBack: licenseBackUrl,
               soatFile: soatUrl,
               technoFile: technoUrl,
+              technoExpiry: docsData.technoExpiry || null,
             },
-            status: 'Pendiente',
-            registeredAt: new Date().toISOString()
-          };
-
-          // 3. Guardar en Firestore
-          await addDoc(collection(db, 'drivers'), newDriver);
+          });
 
           setLoading(false);
           Alert.alert(
@@ -138,7 +141,16 @@ const RegisterScreen = () => {
         } catch (error) {
           setLoading(false);
           console.log('Error al guardar o subir archivos:', error);
-          Alert.alert('Error', 'No se pudo completar el registro ni la carga de archivos. Intenta de nuevo.');
+          if (error.code === 'auth/email-already-in-use') {
+            Alert.alert('Correo en uso', 'Ya existe una cuenta con ese correo. Inicia sesión o usa otro correo.');
+          } else if (error.code === 'auth/weak-password') {
+            Alert.alert('Contraseña débil', 'Elige una contraseña más segura.');
+          } else {
+            Alert.alert(
+              'Error',
+              `${error.code || 'sin código'}\n${error.message || String(error)}`
+            );
+          }
         }
       }
     }
@@ -156,6 +168,10 @@ const RegisterScreen = () => {
       >
         {/* Header Superior Azul Curvo */}
         <View style={styles.topBanner}>
+          {/* Botón para volver al login */}
+          <TouchableOpacity onPress={onBack} style={{ padding: 8, alignSelf: 'flex-start' }}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
           <View style={styles.tabHeader}>
             {/* Pestaña 1 */}
             <TouchableOpacity 

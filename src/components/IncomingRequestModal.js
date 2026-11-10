@@ -1,12 +1,6 @@
 // AI-assisted: see docs/AI_LOG.md #11
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { calculateFare } from '../utils/calculateFare';
 

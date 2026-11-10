@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { formatLocalDate, parseLocalDate } from '../utils/dateUtils';
 
 const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) => {
   const [activeDatePicker, setActiveDatePicker] = useState(null);
@@ -22,7 +22,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
     setActiveDatePicker(Platform.OS === 'ios' ? fieldKey : null);
 
     if (selectedDate && fieldKey) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
+      const formattedDate = formatLocalDate(selectedDate);
       if (fieldKey === 'license') handleChange('licenseExpiry', formattedDate);
       if (fieldKey === 'soat') handleChange('soatExpiry', formattedDate);
       if (fieldKey === 'techno') handleChange('technoExpiry', formattedDate);
@@ -63,12 +63,6 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
   const handleDocOrPdfUpload = (field, title) => {
     const currentVal = docsData[field];
 
-    const pickPDF = async () => {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        handleChange(field, { uri: result.assets[0].uri, name: result.assets[0].name || 'Documento.pdf', isPdf: true });
-      }
-    };
 
     const pickImage = async () => {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.7 });
@@ -89,7 +83,6 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
     const options = [
       { text: 'Tomar foto (Cámara)', onPress: takeCamera },
       { text: 'Elegir Imagen (Galería)', onPress: pickImage },
-      { text: 'Cargar documento (PDF)', onPress: pickPDF },
     ];
 
     if (currentVal) {
@@ -98,7 +91,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
 
     options.push({ text: 'Cancelar', onPress: () => {} });
 
-    Alert.alert(title, 'Selecciona el formato a cargar:', options, { cancelable: true });
+    Alert.alert(title, 'Selecciona una opción:', options, { cancelable: true });
   };
 
   return (
