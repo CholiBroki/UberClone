@@ -1,12 +1,15 @@
-// AI-assisted: see docs/AI_LOG.md #10 #15 #17
-import React, { useState, useEffect, useCallback } from 'react';
+// AI-assisted: see docs/AI_LOG.md #10 #15 #17 #19
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, StatusBar, Platform, Alert,} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDriverLocation } from '../hooks/useDriverLocation';
+import { useTripRequests } from '../hooks/useTripRequests';
+import { acceptTrip, rejectTrip, createMockTripRequest, mapTripForUI,} from '../service/tripService';
 import IncomingRequestModal from '../components/IncomingRequestModal';
 import LeafletMap from '../components/LeafletMap';
 
 const HomeScreen = ({
+  driverId,
   driverStatus = 'Pendiente',
   onOpenProfile,
   initialAvailable = false,
@@ -14,46 +17,20 @@ const HomeScreen = ({
 }) => {
   const [isAvailable, setIsAvailable] = useState(false);
 
-  // Restaurar el último estado de disponibilidad (solo con la cuenta aprobada).
-  // Se ejecuta una sola vez al montar la pantalla.
+
   useEffect(() => {
     if (initialAvailable && driverStatus === 'Aprobado') {
       setIsAvailable(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const { location } = useDriverLocation(isAvailable, driverStatus);
 
-  const [incomingRequest, setIncomingRequest] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const { location } = useDriverLocation(isAvailable, driverStatus, driverId);
+
+  const canReceive = isAvailable && driverStatus === 'Aprobado';
+  const { request } = useTripRequests(driverId, canReceive);
+  const incomingRequest = useMemo(() => (request ? mapTripForUI(request) : null), [request]);
+
   const [activeRoute, setActiveRoute] = useState(null);
-
-  // Simulación: generar viaje entrante a los 4 segundos de estar Disponible
-  useEffect(() => {
-    let timeout = null;
-    if (isAvailable && driverStatus === 'Aprobado' && !incomingRequest) {
-      timeout = setTimeout(() => {
-        const mockTrip = {
-          id: 'TRIP_101',
-          originAddress: 'Parque Lleras, Poblado',
-          destinationAddress: 'Centro Comercial Santafé',
-          originCoords: { latitude: 6.2088, longitude: -75.5678 },
-          destinationCoords: { latitude: 6.1969, longitude: -75.5738 },
-          distanceKm: 6.5,
-          durationMin: 18,
-          category: 'economy',
-          paymentMethod: 'mercadopago',
-          tip: 2000,
-        };
-        setIncomingRequest(mockTrip);
-        setShowModal(true);
-      }, 4000);
-    }
-
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [isAvailable, driverStatus, incomingRequest]);
 
   const handleToggleAvailability = (value) => {
     if (driverStatus === 'Pendiente') {
@@ -69,59 +46,83 @@ const HomeScreen = ({
     setIsAvailable(value);
     onAvailabilityChange?.(value);
     if (!value) {
-      setIncomingRequest(null);
-      setShowModal(false);
       setActiveRoute(null);
     }
   };
 
-  const handleAcceptTrip = useCallback((requestData, fareInfo) => {
-  setShowModal(false);
-  
-  if (requestData.originCoords && requestData.destinationCoords) {
-    setActiveRoute({
-      origin: requestData.originCoords,
-      destination: requestData.destinationCoords,
-    });
-  }
-
-  Alert.alert(
-    '¡Viaje Aceptado!',
-    `Ruta trazada hacia el origen.\nGanancia Neta Est: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`,
-    [
-      {
-        text: 'Simular Finalizar Viaje',
-        onPress: () => handleCompleteTrip(fareInfo),
-      },
-    ]
-  );
-}, []);
-
-  const handleCompleteTrip = (fareInfo) => {
-  setActiveRoute(null);
-  setIncomingRequest(null);
-
-  // Cálculo neto: Tarifa - Comisión (sin contar propina en la tarifa base)
-  const netEarningsWithoutTip = fareInfo.fare - fareInfo.commission;
-
-  Alert.alert(
-    '¡Viaje Completado!',
-    `Pago procesado mediante Mercado Pago.\n\nTotal Cobrado: $${fareInfo.fare.toLocaleString('es-CO')} COP\nComisión Plataforma (20%): -$${fareInfo.commission.toLocaleString('es-CO')} COP\nGanancia Neta Conductor: $${netEarningsWithoutTip.toLocaleString('es-CO')} COP`,
-    [{ text: 'Entendido' }]
-  );
-};
-
-  const handleRejectTrip = useCallback((reason) => {
-    setShowModal(false);
-    setIncomingRequest(null);
+  const handleCompleteTrip = useCallback((fareInfo) => {
     setActiveRoute(null);
-    if (reason === 'timeout') {
-      Alert.alert(
-        'Tiempo agotado',
-        'La solicitud ha sido rechazada automáticamente por el sistema.'
-      );
-    }
+
+    Alert.alert(
+      '¡Viaje Completado!',
+      `Total Cobrado: $${fareInfo.fare.toLocaleString('es-CO')} COP\nComisión Plataforma (${Math.round(
+        fareInfo.commissionRate * 100
+      )}%): -$${fareInfo.commission.toLocaleString('es-CO')} COP\nPropina: $${fareInfo.tip.toLocaleString(
+        'es-CO'
+      )} COP\nGanancia Neta Conductor: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`,
+      [{ text: 'Entendido' }]
+    );
   }, []);
+
+  const handleAcceptTrip = useCallback(
+    async (requestData, fareInfo) => {
+      try {
+        await acceptTrip(requestData.id, driverId);
+      } catch (error) {
+        if (error.code === 'TRIP_UNAVAILABLE') {
+          Alert.alert('Solicitud no disponible', 'Esta solicitud ya no está disponible.');
+        } else {
+          console.log('HomeScreen: error aceptando viaje', error);
+          Alert.alert('Error', 'No se pudo aceptar el viaje. Intenta de nuevo.');
+        }
+        return;
+      }
+
+      if (requestData.originCoords && requestData.destinationCoords) {
+        setActiveRoute({
+          origin: requestData.originCoords,
+          destination: requestData.destinationCoords,
+        });
+      }
+
+      Alert.alert(
+        '¡Viaje Aceptado!',
+        `Ruta trazada hacia el origen.\nGanancia Neta Est: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`,
+        [{ text: 'Simular Finalizar Viaje', onPress: () => handleCompleteTrip(fareInfo) }]
+      );
+    },
+    [driverId, handleCompleteTrip]
+  );
+
+  const tripId = incomingRequest?.id;
+  const handleRejectTrip = useCallback(
+    async (reason) => {
+      if (!tripId) return;
+      try {
+        await rejectTrip(tripId, driverId, reason);
+      } catch (error) {
+        console.log('HomeScreen: error rechazando viaje', error);
+      }
+      if (reason === 'timeout') {
+        Alert.alert(
+          'Tiempo agotado',
+          'La solicitud ha sido rechazada automáticamente por el sistema.'
+        );
+      }
+    },
+    [tripId, driverId]
+  );
+
+  const handleSimulateRequest = async () => {
+  console.log('SIMULAR: toque', { driverId, tieneUbicacion: !!location });
+  try {
+    await createMockTripRequest({ driverId, location });
+    console.log('SIMULAR: documento creado');
+  } catch (error) {
+    console.log('SIMULAR: error', error.code, error.message);
+    Alert.alert('Error', `${error.code || 'sin código'}\n${error.message || String(error)}`);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -176,11 +177,20 @@ const HomeScreen = ({
             value={isAvailable}
           />
         </View>
+
+        {/* Solo desarrollo: simula la solicitud de un pasajero */}
+        {__DEV__ && isAvailable && (
+          <TouchableOpacity style={styles.devButton} onPress={handleSimulateRequest}>
+            <Ionicons name="flask-outline" size={16} color="#0056D2" />
+            <Text style={styles.devButtonText}>Simular solicitud de pasajero</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Modal de solicitud entrante */}
       <IncomingRequestModal
-        visible={showModal}
+        key={incomingRequest?.id || 'none'}
+        visible={!!incomingRequest}
         requestData={incomingRequest}
         onAccept={handleAcceptTrip}
         onReject={handleRejectTrip}
@@ -190,6 +200,19 @@ const HomeScreen = ({
 };
 
 const styles = StyleSheet.create({
+  devButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#0056D2',
+  },
+  devButtonText: { fontSize: 13, fontWeight: '600', color: '#0056D2' },
   container: {
     flex: 1,
     backgroundColor: '#E5E7EB',

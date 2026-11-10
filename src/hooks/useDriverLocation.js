@@ -1,9 +1,13 @@
-// AI-assisted: see docs/AI_LOG.md #12
-import { useState, useEffect } from 'react';
+// AI-assisted: see docs/AI_LOG.md #12 #19
+import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../service/firebase';
 
-export const useDriverLocation = (isAvailable, driverStatus) => {
+const MIN_WRITE_INTERVAL_MS = 4000; 
+
+export const useDriverLocation = (isAvailable, driverStatus, driverId) => {
   const [location, setLocation] = useState({
     latitude: 6.2442,
     longitude: -75.5812,
@@ -11,8 +15,10 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
     longitudeDelta: 0.015,
   });
   const [hasPermission, setHasPermission] = useState(false);
+  const lastWriteRef = useRef(0);
 
-  // Solicitar permisos y obtener ubicación inicial
+  const online = isAvailable && driverStatus === 'Aprobado' && !!driverId;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -53,12 +59,26 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
     };
   }, []);
 
-  // Seguimiento en tiempo real con función de limpieza
+  useEffect(() => {
+    if (!online) return undefined;
+
+    const ref = doc(db, 'drivers', driverId);
+    updateDoc(ref, { isAvailable: true }).catch((e) =>
+      console.log('useDriverLocation: no se pudo marcar disponible', e)
+    );
+
+    return () => {
+      updateDoc(ref, { isAvailable: false }).catch((e) =>
+        console.log('useDriverLocation: no se pudo marcar no disponible', e)
+      );
+    };
+  }, [online, driverId]);
+
   useEffect(() => {
     let subscription = null;
     let cancelled = false;
 
-    if (isAvailable && driverStatus === 'Aprobado' && hasPermission) {
+    if (online && hasPermission) {
       (async () => {
         try {
           const sub = await Location.watchPositionAsync(
@@ -70,7 +90,15 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
             (newLocation) => {
               const { latitude, longitude } = newLocation.coords;
               setLocation((prev) => ({ ...prev, latitude, longitude }));
-              // Aquí se enviará la coordenada a la base de datos (Firestore)
+
+              const now = Date.now();
+              if (now - lastWriteRef.current < MIN_WRITE_INTERVAL_MS) return;
+              lastWriteRef.current = now;
+
+              updateDoc(doc(db, 'drivers', driverId), {
+                location: { latitude, longitude },
+                locationUpdatedAt: serverTimestamp(),
+              }).catch((e) => console.log('useDriverLocation: error enviando ubicación', e));
             }
           );
           if (cancelled) {
@@ -90,7 +118,7 @@ export const useDriverLocation = (isAvailable, driverStatus) => {
         subscription.remove();
       }
     };
-  }, [isAvailable, driverStatus, hasPermission]);
+  }, [online, hasPermission, driverId]);
 
   return { location, hasPermission };
 };

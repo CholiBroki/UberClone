@@ -1,4 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #17
+// AI-assisted: see docs/AI_LOG.md #17 #19
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { DrawerActions } from '@react-navigation/native';
@@ -15,6 +15,7 @@ function HomeRoute({ navigation }) {
 
   return (
     <HomeScreen
+      driverId={driver?.id}
       driverStatus={driver?.status}
       onOpenProfile={() => navigation.dispatch(DrawerActions.openDrawer())}
       initialAvailable={lastAvailability}
