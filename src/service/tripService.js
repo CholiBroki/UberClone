@@ -1,8 +1,9 @@
-// AI-assisted: see docs/AI_LOG.md #19
-import { collection, addDoc, doc, runTransaction, serverTimestamp,} from 'firebase/firestore';
+// AI-assisted: see docs/AI_LOG.md #19 #20
+import { collection,addDoc, doc, runTransaction, serverTimestamp,} from 'firebase/firestore';
 import { db } from './firebase';
 import PRICING_CONFIG from '../config/pricing';
 import { calculateFare } from '../utils/calculateFare';
+import { haversineKm } from '../utils/geo';
 
 const tripError = (code) => {
   const error = new Error(code);
@@ -84,17 +85,75 @@ export const rejectTrip = async (tripId, driverId, reason = 'manual') => {
   }
 };
 
+export const TRIP_ACTIVE_STATUSES = ['accepted', 'driver_arriving', 'in_progress'];
+export const TRIP_OPEN_STATUSES = [...TRIP_ACTIVE_STATUSES, 'completed'];
 
-const toRad = (deg) => (deg * Math.PI) / 180;
-const haversineKm = (a, b) => {
-  const R = 6371;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
+const transition = async (tripId, driverId, allowedFrom, updates) => {
+  const ref = doc(db, 'trips', tripId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw tripError('TRIP_NOT_FOUND');
+    const trip = snap.data();
+    if (trip.driverId !== driverId) throw tripError('NOT_YOUR_TRIP');
+    if (!allowedFrom.includes(trip.status)) throw tripError('INVALID_STATE');
+    tx.update(ref, typeof updates === 'function' ? updates(trip) : updates);
+  });
 };
+
+export const startArriving = (tripId, driverId) =>
+  transition(tripId, driverId, ['accepted'], {
+    status: 'driver_arriving',
+    arrivingAt: serverTimestamp(),
+  });
+
+export const passengerOnBoard = (tripId, driverId) =>
+  transition(tripId, driverId, ['driver_arriving'], {
+    status: 'in_progress',
+    startedAt: serverTimestamp(),
+  });
+
+export const completeTrip = (tripId, driverId) =>
+  transition(tripId, driverId, ['in_progress'], (trip) => {
+    const { fare, commission, driverEarnings, commissionRate } = calculateFare({
+      distanceKm: trip.distanceKm,
+      durationMin: trip.durationMin,
+      category: trip.category,
+      tip: trip.tip || 0,
+    });
+    return {
+      status: 'completed',
+      fare,
+      commission,
+      driverEarnings,
+      commissionRate,
+      paymentStatus: 'pending',
+      completedAt: serverTimestamp(),
+    };
+  });
+
+export const cancelTrip = (tripId, driverId, reason = 'driver_cancelled') =>
+  transition(tripId, driverId, ['accepted', 'driver_arriving'], {
+    status: 'cancelled',
+    cancelledBy: 'driver',
+    cancelReason: reason,
+    cancelledAt: serverTimestamp(),
+  });
+
+export const confirmCashPayment = (tripId, driverId) =>
+  transition(tripId, driverId, ['completed'], (trip) => {
+    if (trip.paymentMethod !== 'cash') throw tripError('NOT_CASH');
+    return { status: 'paid', paymentStatus: 'cash', paidAt: serverTimestamp() };
+  });
+
+export const simulateApprovedPayment = (tripId, driverId) =>
+  transition(tripId, driverId, ['completed'], {
+    status: 'paid',
+    paymentStatus: 'approved',
+    paymentId: `dev_${Date.now()}`,
+    paidAt: serverTimestamp(),
+  });
+
+
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 const jitter = (max) => (Math.random() * 2 - 1) * max;
 

@@ -1,10 +1,15 @@
-// AI-assisted: see docs/AI_LOG.md #10 #15 #17 #19
+// AI-assisted: see docs/AI_LOG.md #10 #15 #17 #19 #20
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, StatusBar, Platform, Alert,} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDriverLocation } from '../hooks/useDriverLocation';
 import { useTripRequests } from '../hooks/useTripRequests';
-import { acceptTrip, rejectTrip, createMockTripRequest, mapTripForUI,} from '../service/tripService';
+import {
+  acceptTrip,
+  rejectTrip,
+  createMockTripRequest,
+  mapTripForUI,
+} from '../service/tripService';
 import IncomingRequestModal from '../components/IncomingRequestModal';
 import LeafletMap from '../components/LeafletMap';
 
@@ -17,7 +22,6 @@ const HomeScreen = ({
 }) => {
   const [isAvailable, setIsAvailable] = useState(false);
 
-
   useEffect(() => {
     if (initialAvailable && driverStatus === 'Aprobado') {
       setIsAvailable(true);
@@ -29,8 +33,6 @@ const HomeScreen = ({
   const canReceive = isAvailable && driverStatus === 'Aprobado';
   const { request } = useTripRequests(driverId, canReceive);
   const incomingRequest = useMemo(() => (request ? mapTripForUI(request) : null), [request]);
-
-  const [activeRoute, setActiveRoute] = useState(null);
 
   const handleToggleAvailability = (value) => {
     if (driverStatus === 'Pendiente') {
@@ -45,27 +47,10 @@ const HomeScreen = ({
 
     setIsAvailable(value);
     onAvailabilityChange?.(value);
-    if (!value) {
-      setActiveRoute(null);
-    }
   };
 
-  const handleCompleteTrip = useCallback((fareInfo) => {
-    setActiveRoute(null);
-
-    Alert.alert(
-      '¡Viaje Completado!',
-      `Total Cobrado: $${fareInfo.fare.toLocaleString('es-CO')} COP\nComisión Plataforma (${Math.round(
-        fareInfo.commissionRate * 100
-      )}%): -$${fareInfo.commission.toLocaleString('es-CO')} COP\nPropina: $${fareInfo.tip.toLocaleString(
-        'es-CO'
-      )} COP\nGanancia Neta Conductor: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`,
-      [{ text: 'Entendido' }]
-    );
-  }, []);
-
   const handleAcceptTrip = useCallback(
-    async (requestData, fareInfo) => {
+    async (requestData) => {
       try {
         await acceptTrip(requestData.id, driverId);
       } catch (error) {
@@ -75,23 +60,9 @@ const HomeScreen = ({
           console.log('HomeScreen: error aceptando viaje', error);
           Alert.alert('Error', 'No se pudo aceptar el viaje. Intenta de nuevo.');
         }
-        return;
       }
-
-      if (requestData.originCoords && requestData.destinationCoords) {
-        setActiveRoute({
-          origin: requestData.originCoords,
-          destination: requestData.destinationCoords,
-        });
-      }
-
-      Alert.alert(
-        '¡Viaje Aceptado!',
-        `Ruta trazada hacia el origen.\nGanancia Neta Est: $${fareInfo.driverEarnings.toLocaleString('es-CO')} COP`,
-        [{ text: 'Simular Finalizar Viaje', onPress: () => handleCompleteTrip(fareInfo) }]
-      );
     },
-    [driverId, handleCompleteTrip]
+    [driverId]
   );
 
   const tripId = incomingRequest?.id;
@@ -114,26 +85,23 @@ const HomeScreen = ({
   );
 
   const handleSimulateRequest = async () => {
-  console.log('SIMULAR: toque', { driverId, tieneUbicacion: !!location });
-  try {
-    await createMockTripRequest({ driverId, location });
-    console.log('SIMULAR: documento creado');
-  } catch (error) {
-    console.log('SIMULAR: error', error.code, error.message);
-    Alert.alert('Error', `${error.code || 'sin código'}\n${error.message || String(error)}`);
-  }
-};
+    try {
+      await createMockTripRequest({ driverId, location });
+    } catch (error) {
+      console.log('HomeScreen: error creando solicitud simulada', error);
+      Alert.alert('Error', 'No se pudo crear la solicitud simulada. Revisa las reglas de Firestore.');
+    }
+  };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Mapa de fondo con soporte de trazado de ruta OSRM */}
+      {/* Mapa de fondo */}
       <LeafletMap
         latitude={location.latitude}
         longitude={location.longitude}
         available={isAvailable}
-        route={activeRoute}
       />
 
       {/* Barra de encabezado flotante */}

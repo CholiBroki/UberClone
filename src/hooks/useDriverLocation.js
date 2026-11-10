@@ -1,13 +1,14 @@
-// AI-assisted: see docs/AI_LOG.md #12 #19
+// AI-assisted: see docs/AI_LOG.md #12 #19 #20
 import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../service/firebase';
+import { auth, db } from '../service/firebase';
 
 const MIN_WRITE_INTERVAL_MS = 4000; 
 
-export const useDriverLocation = (isAvailable, driverStatus, driverId) => {
+export const useDriverLocation = (isAvailable, driverStatus, driverId, options = {}) => {
+  const { markAvailable = true } = options;
   const [location, setLocation] = useState({
     latitude: 6.2442,
     longitude: -75.5812,
@@ -60,7 +61,7 @@ export const useDriverLocation = (isAvailable, driverStatus, driverId) => {
   }, []);
 
   useEffect(() => {
-    if (!online) return undefined;
+    if (!online || !markAvailable) return undefined;
 
     const ref = doc(db, 'drivers', driverId);
     updateDoc(ref, { isAvailable: true }).catch((e) =>
@@ -68,11 +69,12 @@ export const useDriverLocation = (isAvailable, driverStatus, driverId) => {
     );
 
     return () => {
+      if (auth.currentUser?.uid !== driverId) return;
       updateDoc(ref, { isAvailable: false }).catch((e) =>
         console.log('useDriverLocation: no se pudo marcar no disponible', e)
       );
     };
-  }, [online, driverId]);
+  }, [online, markAvailable, driverId]);
 
   useEffect(() => {
     let subscription = null;
