@@ -169,7 +169,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Ionicons name="shield-checkmark-outline" size={18} color="#0056D2" />
-            <Text style={styles.label}>Carga de SOAT (Foto o PDF)</Text>
+            <Text style={styles.label}>Carga de SOAT (Foto)</Text>
           </View>
           <TouchableOpacity onPress={() => handleDocOrPdfUpload('soatFile', 'Documento SOAT')} style={styles.docBoxLarge}>
             {docsData.soatFile ? (
@@ -184,7 +184,7 @@ const DocumentsTab = ({ docsData, setDocsData, errors, touched, vehicleYear }) =
             ) : (
               <View style={styles.uploadPlaceholder}>
                 <Ionicons name="cloud-upload-outline" size={32} color="#0056D2" />
-                <Text style={styles.uploadText}>Cargar Foto o PDF del SOAT</Text>
+                <Text style={styles.uploadText}>Cargar Foto del SOAT</Text>
               </View>
             )}
           </TouchableOpacity>

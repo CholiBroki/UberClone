@@ -60,7 +60,6 @@ export default function LoginScreen({ onNavigateRegister }) {
               <Ionicons name="car" size={44} color="#FFFFFF" />
             </View>
             <Text style={styles.brand}>UberClone</Text>
-            <Text style={styles.sub}>Inicia sesión como conductor</Text>
           </View>
 
           <Text style={styles.label}>Correo electrónico</Text>
