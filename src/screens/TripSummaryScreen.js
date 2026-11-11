@@ -1,14 +1,13 @@
-// AI-assisted: see docs/AI_LOG.md #20
+// AI-assisted: see docs/AI_LOG.md #20 #21
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator,
-  StatusBar, Platform,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, StatusBar, Platform,} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTripFlow } from '../context/TripFlowContext';
 import { useTrip } from '../hooks/useTrip';
 import { confirmCashPayment, simulateApprovedPayment } from '../service/tripService';
+import { createPaymentPreference, syncPayment } from '../service/paymentService';
+import MercadoPagoCheckout from '../components/MercadoPagoCheckout';
 import {
   CATEGORY_LABELS, PAYMENT_LABELS, PAYMENT_STATUS_LABELS, formatCOP,
 } from '../utils/labels';
@@ -32,6 +31,7 @@ export default function TripSummaryScreen() {
   const { summaryId, closeSummary } = useTripFlow();
   const { trip } = useTrip(summaryId);
   const [busy, setBusy] = useState(false);
+  const [checkout, setCheckout] = useState(null); 
 
   if (!trip) {
     return (
@@ -45,15 +45,18 @@ export default function TripSummaryScreen() {
   const isCash = trip.paymentMethod === 'cash';
   const paymentStatus = trip.paymentStatus || 'pending';
   const colors = STATUS_COLORS[paymentStatus] || STATUS_COLORS.pending;
+  const total = Number(trip.fare) + Number(trip.tip || 0);
 
   const run = async (fn, errorMessage) => {
-    if (busy) return;
+    if (busy) return null;
     setBusy(true);
     try {
-      await fn();
+      return await fn();
     } catch (error) {
       console.log('TripSummaryScreen:', error);
-      Alert.alert('Error', errorMessage);
+      const known = ['NETWORK', 'NO_API_URL', 'API_ERROR'].includes(error.code);
+      Alert.alert('Error', known ? error.message : errorMessage);
+      return null;
     } finally {
       setBusy(false);
     }
@@ -62,7 +65,7 @@ export default function TripSummaryScreen() {
   const handleConfirmCash = () => {
     Alert.alert(
       'Confirmar cobro en efectivo',
-      `¿Recibiste ${formatCOP(trip.fare + (trip.tip || 0))} del pasajero?`,
+      `¿Recibiste ${formatCOP(total)} del pasajero?`,
       [
         { text: 'Todavía no', style: 'cancel' },
         {
@@ -72,6 +75,46 @@ export default function TripSummaryScreen() {
         },
       ]
     );
+  };
+
+  const handlePayWithMercadoPago = async () => {
+    const preference = await run(
+      () => createPaymentPreference(trip),
+      'No se pudo iniciar el pago con Mercado Pago.'
+    );
+    if (preference?.initPoint) {
+      setCheckout({ initPoint: preference.initPoint, returnUrl: preference.returnUrl });
+    }
+  };
+
+  const verifyPayment = async (showNotFound) => {
+    const result = await run(() => syncPayment(trip.id), 'No se pudo verificar el pago.');
+    if (result && result.found === false && showNotFound) {
+      Alert.alert(
+        'Sin pago registrado',
+        'Todavía no hay un pago de este viaje en Mercado Pago. Si ya pagaste, espera unos segundos y verifica de nuevo.'
+      );
+    }
+    return result;
+  };
+
+  const handleCheckoutFinish = async (result) => {
+    setCheckout(null);
+    const sync = await verifyPayment(false);
+    if (!sync) return;
+
+    if (sync.paymentStatus === 'rejected') {
+      Alert.alert('Pago rechazado', 'El pago no fue aprobado. Puedes intentarlo de nuevo.');
+    } else if (sync.paymentStatus === 'pending' && sync.status !== 'paid') {
+      Alert.alert('Pago pendiente', 'Mercado Pago aún está procesando el pago. Verifica de nuevo en unos segundos.');
+    } else if (result === 'success' && sync.found === false) {
+      Alert.alert('Verificando pago', 'Aún no vemos el pago. Toca "Verificar pago" en unos segundos.');
+    }
+  };
+
+  const handleCheckoutClose = () => {
+    setCheckout(null);
+    verifyPayment(false);
   };
 
   return (
@@ -137,13 +180,47 @@ export default function TripSummaryScreen() {
           )}
         </TouchableOpacity>
       ) : (
-        <View style={styles.waitBox}>
-          <ActivityIndicator color="#B45309" />
-          <Text style={styles.waitText}>Esperando el pago del pasajero con la pasarela…</Text>
-        </View>
+        <>
+          {paymentStatus === 'rejected' && (
+            <View style={styles.rejectedBox}>
+              <Text style={styles.rejectedText}>
+                El último pago fue rechazado. Puedes intentarlo de nuevo con otra tarjeta.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.mainButton, busy && { opacity: 0.7 }]}
+            onPress={handlePayWithMercadoPago}
+            disabled={busy}
+            activeOpacity={0.85}
+          >
+            {busy ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.mainButtonText}>
+                {paymentStatus === 'rejected'
+                  ? 'Reintentar pago'
+                  : `Cobrar ${formatCOP(total)} con Mercado Pago`}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {!!trip.paymentPreferenceId && (
+            <TouchableOpacity
+              style={styles.outlineButton}
+              onPress={() => verifyPayment(true)}
+              disabled={busy}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="refresh" size={16} color="#0056D2" />
+              <Text style={styles.outlineButtonText}>Verificar pago</Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
 
-      {/* SOLO DESARROLLO: en el Paso 5 el webhook del backend hace este cambio */}
+      {/* SOLO DESARROLLO: atajo para probar sin pasar por Mercado Pago */}
       {__DEV__ && !paid && !isCash && (
         <TouchableOpacity
           style={styles.devButton}
@@ -153,9 +230,17 @@ export default function TripSummaryScreen() {
           }
         >
           <Ionicons name="flask-outline" size={16} color="#0056D2" />
-          <Text style={styles.devButtonText}>Simular pago aprobado</Text>
+          <Text style={styles.devButtonText}>Simular pago aprobado (solo desarrollo)</Text>
         </TouchableOpacity>
       )}
+
+      <MercadoPagoCheckout
+        visible={!!checkout}
+        initPoint={checkout?.initPoint}
+        returnUrl={checkout?.returnUrl}
+        onFinish={handleCheckoutFinish}
+        onClose={handleCheckoutClose}
+      />
     </ScrollView>
   );
 }
@@ -196,15 +281,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#0056D2', paddingVertical: 16, borderRadius: 30, alignItems: 'center', elevation: 4,
   },
   mainButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  waitBox: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: '#FEF3C7', borderRadius: 16, padding: 16,
+  outlineButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: 12, paddingVertical: 13, borderRadius: 30, borderWidth: 1.5, borderColor: '#0056D2',
   },
-  waitText: { color: '#B45309', fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  outlineButtonText: { color: '#0056D2', fontSize: 14, fontWeight: '700' },
+  rejectedBox: { backgroundColor: '#FEE2E2', borderRadius: 14, padding: 14, marginBottom: 14 },
+  rejectedText: { color: '#B91C1C', fontSize: 13, fontWeight: '600' },
   devButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 14, paddingVertical: 10, borderRadius: 14,
-    borderWidth: 1, borderStyle: 'dashed', borderColor: '#0056D2',
+    marginTop: 18, paddingVertical: 10, borderRadius: 14,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: '#94A3B8',
   },
-  devButtonText: { fontSize: 13, fontWeight: '600', color: '#0056D2' },
+  devButtonText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
 });
