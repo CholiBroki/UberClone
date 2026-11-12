@@ -1,17 +1,13 @@
-// AI-assisted: see docs/AI_LOG.md #17 #22
+// AI-assisted: see docs/AI_LOG.md #17 #22 #23
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import {
-  createDrawerNavigator,
-  DrawerContentScrollView,
-  DrawerItemList,
-} from '@react-navigation/drawer';
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList,} from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import TripStack from './TripStack';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import EarningsScreen from '../screens/EarningsScreen';
-import { HistoryScreen } from '../screens/PlaceholderScreen';
+import HistoryStack from './HistoryStack';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useConfirmLogout } from '../hooks/useConfirmLogout';
@@ -77,7 +73,7 @@ export default function AppDrawer() {
         options={{
           title: t('home'),
           headerShown: false, 
-          swipeEnabled: false, 
+          swipeEnabled: false,
           drawerIcon: icon('home-outline'),
         }}
       />
@@ -88,8 +84,12 @@ export default function AppDrawer() {
       />
       <Drawer.Screen
         name="History"
-        component={HistoryScreen}
-        options={{ title: t('history'), drawerIcon: icon('time-outline') }}
+        component={HistoryStack}
+        options={{
+          title: t('history'),
+          headerShown: false, 
+          drawerIcon: icon('time-outline'),
+        }}
       />
       <Drawer.Screen
         name="Profile"
