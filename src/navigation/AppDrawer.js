@@ -1,12 +1,17 @@
-// AI-assisted: see docs/AI_LOG.md #17
+// AI-assisted: see docs/AI_LOG.md #17 #22
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList,} from '@react-navigation/drawer';
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+} from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import TripStack from './TripStack';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import { EarningsScreen, HistoryScreen } from '../screens/PlaceholderScreen';
+import EarningsScreen from '../screens/EarningsScreen';
+import { HistoryScreen } from '../screens/PlaceholderScreen';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useConfirmLogout } from '../hooks/useConfirmLogout';
@@ -71,8 +76,8 @@ export default function AppDrawer() {
         component={TripStack}
         options={{
           title: t('home'),
-          headerShown: false, // el Stack y HomeScreen traen su propio encabezado
-          swipeEnabled: false, // evita chocar con el arrastre del mapa; se abre con el botón de menú
+          headerShown: false, 
+          swipeEnabled: false, 
           drawerIcon: icon('home-outline'),
         }}
       />
