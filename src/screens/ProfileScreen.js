@@ -1,6 +1,6 @@
-// AI-assisted: see docs/AI_LOG.md #17
+// AI-assisted: see docs/AI_LOG.md #17 #24
 import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
@@ -12,7 +12,7 @@ const Row = ({ label, value }) => (
   </View>
 );
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { driver } = useAuth();
   const { t } = usePreferences();
 
@@ -62,7 +62,14 @@ export default function ProfileScreen() {
         <Row label={t('soatExpiry')} value={d.soatExpiry} />
       </View>
 
-      <Text style={styles.note}>{t('editSoon')}</Text>
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={() => navigation.navigate('EditProfile')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.editButtonText}>{t('editProfile')}</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -85,5 +92,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0' },
   rowLabel: { fontSize: 14, color: '#64748B' },
   rowValue: { fontSize: 14, fontWeight: '600', color: '#0A2540', maxWidth: '60%', textAlign: 'right' },
-  note: { marginTop: 20, fontSize: 12, color: '#94A3B8', textAlign: 'center' },
+  editButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 24, paddingVertical: 15, borderRadius: 30, backgroundColor: '#0056D2', elevation: 4,
+  },
+  editButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });

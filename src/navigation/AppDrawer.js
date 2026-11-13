@@ -1,10 +1,14 @@
-// AI-assisted: see docs/AI_LOG.md #17 #22 #23
+// AI-assisted: see docs/AI_LOG.md #17 #22 #23 #24
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList,} from '@react-navigation/drawer';
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+} from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import TripStack from './TripStack';
-import ProfileScreen from '../screens/ProfileScreen';
+import ProfileStack from './ProfileStack';
 import SettingsScreen from '../screens/SettingsScreen';
 import EarningsScreen from '../screens/EarningsScreen';
 import HistoryStack from './HistoryStack';
@@ -73,7 +77,7 @@ export default function AppDrawer() {
         options={{
           title: t('home'),
           headerShown: false, 
-          swipeEnabled: false,
+          swipeEnabled: false, 
           drawerIcon: icon('home-outline'),
         }}
       />
@@ -93,8 +97,12 @@ export default function AppDrawer() {
       />
       <Drawer.Screen
         name="Profile"
-        component={ProfileScreen}
-        options={{ title: t('profile'), drawerIcon: icon('person-outline') }}
+        component={ProfileStack}
+        options={{
+          title: t('profile'),
+          headerShown: false, 
+          drawerIcon: icon('person-outline'),
+        }}
       />
       <Drawer.Screen
         name="Settings"

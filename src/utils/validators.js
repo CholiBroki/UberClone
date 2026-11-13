@@ -1,11 +1,11 @@
-// AI-assisted: see docs/AI_LOG.md #16
+// AI-assisted: see docs/AI_LOG.md #16 #24
 import { formatLocalDate, parseLocalDate } from './dateUtils';
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
 const NAME_REGEX = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?: [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/;
 const PLATE_REGEX = /^[A-Z]{3}\d{3}$/;
 
-export const validatePersonalData = (data) => {
+export const validatePersonalData = (data, { requirePassword = true } = {}) => {
   const errors = {};
 
   const name = (data.fullName || '').trim();
@@ -31,12 +31,14 @@ export const validatePersonalData = (data) => {
     errors.email = 'Ingrese un correo válido con @ y dominio (ej. nombre@dominio.com).';
   }
 
-  if (!data.password) {
-    errors.password = 'La contraseña es obligatoria.';
-  } else if (data.password.length < 8) {
-    errors.password = 'La contraseña debe tener al menos 8 caracteres.';
-  } else if (!/[A-Za-z]/.test(data.password) || !/\d/.test(data.password)) {
-    errors.password = 'La contraseña debe combinar letras y números.';
+  if (requirePassword) {
+    if (!data.password) {
+      errors.password = 'La contraseña es obligatoria.';
+    } else if (data.password.length < 8) {
+      errors.password = 'La contraseña debe tener al menos 8 caracteres.';
+    } else if (!/[A-Za-z]/.test(data.password) || !/\d/.test(data.password)) {
+      errors.password = 'La contraseña debe combinar letras y números.';
+    }
   }
 
   if (!data.birthDate) {
@@ -66,7 +68,6 @@ export const validateVehicleData = (data) => {
 
   if (!data.category) errors.category = 'Debe seleccionar una categoría.';
 
-  // La placa se convierte a mayúsculas antes de validar
   const plate = (data.plate || '').trim().toUpperCase();
   if (!PLATE_REGEX.test(plate)) {
     errors.plate = 'La placa debe tener formato colombiano (3 letras y 3 números). Ej: ABC123';

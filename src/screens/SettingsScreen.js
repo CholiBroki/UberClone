@@ -1,13 +1,26 @@
-// AI-assisted: see docs/AI_LOG.md #17
+// AI-assisted: see docs/AI_LOG.md #17 #24
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../service/firebase';
+import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useConfirmLogout } from '../hooks/useConfirmLogout';
 
 export default function SettingsScreen() {
   const { language, setLanguage, t } = usePreferences();
+  const { driver } = useAuth();
   const confirmLogout = useConfirmLogout();
+
+  const handleLanguage = (code) => {
+    setLanguage(code);
+    if (driver?.id) {
+      updateDoc(doc(db, 'drivers', driver.id), {
+        language: code === 'es' ? 'Español' : 'Inglés',
+      }).catch((e) => console.log('SettingsScreen: no se pudo guardar el idioma en el perfil', e));
+    }
+  };
 
   const options = [
     { code: 'es', label: t('spanish') },
@@ -22,7 +35,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             key={opt.code}
             style={[styles.option, i > 0 && styles.optionBorder]}
-            onPress={() => setLanguage(opt.code)}
+            onPress={() => handleLanguage(opt.code)}
             activeOpacity={0.7}
           >
             <Text style={styles.optionText}>{opt.label}</Text>

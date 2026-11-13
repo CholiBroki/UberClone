@@ -1,5 +1,4 @@
-// AI-assisted: see docs/AI_LOG.md #17 #22 #23
-// Diccionario mínimo es/en. Se amplía en el paso de Perfil y configuración.
+// AI-assisted: see docs/AI_LOG.md #17 #22 #23 #24
 export const translations = {
   es: {
     home: 'Inicio',
@@ -85,6 +84,16 @@ export const translations = {
     paymentStatus: 'Estado del pago',
     passengerRating: 'Calificación del pasajero',
     noRating: 'Sin calificación',
+    editProfile: 'Editar perfil',
+    saveChanges: 'Guardar cambios',
+    profileSaved: '¡Perfil actualizado!',
+    profileSaveError: 'No se pudieron guardar los cambios. Revisa tu conexión e inténtalo de nuevo.',
+    discardTitle: 'Descartar cambios',
+    discardMessage: 'Tienes cambios sin guardar. ¿Quieres salir sin guardarlos?',
+    discard: 'Descartar',
+    keepEditing: 'Seguir editando',
+    fixFields: 'Revisa los campos marcados en la sección: {section}',
+    lockedField: 'El correo y el documento no se pueden cambiar desde aquí.',
   },
   en: {
     home: 'Home',
@@ -170,5 +179,15 @@ export const translations = {
     paymentStatus: 'Payment status',
     passengerRating: 'Passenger rating',
     noRating: 'No rating',
+    editProfile: 'Edit profile',
+    saveChanges: 'Save changes',
+    profileSaved: 'Profile updated!',
+    profileSaveError: 'Your changes could not be saved. Check your connection and try again.',
+    discardTitle: 'Discard changes',
+    discardMessage: 'You have unsaved changes. Do you want to leave without saving?',
+    discard: 'Discard',
+    keepEditing: 'Keep editing',
+    fixFields: 'Check the highlighted fields in the section: {section}',
+    lockedField: 'Email and ID number cannot be changed from here.',
   },
 };
